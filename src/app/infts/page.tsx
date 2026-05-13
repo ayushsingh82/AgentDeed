@@ -148,20 +148,20 @@ export default function MarketplacePage() {
   }, [filter, query]);
 
   return (
-    <main className="flex min-h-screen flex-col bg-[#0A0A0F] text-[#F5F2EB]">
+    <main className="flex min-h-screen flex-col bg-[#E2E2DA] text-[#0A0A0A]">
       <NavBar />
 
-      <section className="border-b border-[#2a2a36] px-6 py-14">
+      <section className="border-b border-[#0A0A0A] px-6 py-14">
         <div className="mx-auto flex max-w-7xl flex-col gap-8">
           <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
             <div>
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-[#E0B65A]">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-[#F64618]">
                 Marketplace · /infts
               </p>
               <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
                 Sealed models for sale.
               </h1>
-              <p className="mt-3 max-w-2xl text-base text-[#F5F2EB]/75">
+              <p className="mt-3 max-w-2xl text-base text-[#0A0A0A]/75">
                 Every listing is a working capability behind a TEE-sealed key.
                 Buy → key re-encrypts to you. Seller can no longer infer.
               </p>
@@ -177,8 +177,8 @@ export default function MarketplacePage() {
                   onClick={() => setFilter(f)}
                   className={`border px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.2em] transition ${
                     filter === f
-                      ? "border-[#E0B65A] bg-[#E0B65A] text-[#0A0A0F]"
-                      : "border-[#2a2a36] text-[#F5F2EB] hover:border-[#E0B65A]"
+                      ? "border-[#F64618] bg-[#F64618] text-[#E2E2DA]"
+                      : "border-[#0A0A0A] text-[#0A0A0A] hover:border-[#F64618]"
                   }`}
                 >
                   {f}
@@ -191,9 +191,9 @@ export default function MarketplacePage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search by model, base, or token id…"
-                className="w-full border border-[#2a2a36] bg-[#14141b] px-4 py-3 pr-10 font-mono text-sm text-[#F5F2EB] placeholder:text-[#8a8794] focus:border-[#E0B65A] focus:outline-none"
+                className="w-full border border-[#0A0A0A] bg-[#E2E2DA] px-4 py-3 pr-10 font-mono text-sm text-[#0A0A0A] placeholder:text-[#6A6A60] focus:border-[#F64618] focus:outline-none"
               />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-[#8a8794]">
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-[#6A6A60]">
                 ⌘K
               </span>
             </div>
@@ -204,13 +204,23 @@ export default function MarketplacePage() {
       <section className="px-6 py-12">
         <div className="mx-auto max-w-7xl">
           {filtered.length === 0 ? (
-            <div className="border border-dashed border-[#2a2a36] p-16 text-center font-mono text-sm text-[#8a8794]">
+            <div className="border border-dashed border-[#0A0A0A] p-16 text-center font-mono text-sm text-[#6A6A60]">
               No listings match the current filter.
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((l) => (
-                <ListingCard key={l.id} listing={l} />
+              {filtered.map((l, idx) => (
+                <ListingCard
+                  key={l.id}
+                  listing={l}
+                  variant={
+                    l.status === "Sold"
+                      ? "muted"
+                      : idx % 5 === 2
+                      ? "accent"
+                      : "ink"
+                  }
+                />
               ))}
             </div>
           )}
@@ -234,84 +244,129 @@ function Stats() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-[#2a2a36] bg-[#14141b] px-4 py-3">
-      <dt className="text-[9px] font-bold uppercase tracking-[0.24em] text-[#8a8794]">
+    <div className="border border-[#0A0A0A] bg-[#E2E2DA] px-4 py-3">
+      <dt className="text-[9px] font-bold uppercase tracking-[0.24em] text-[#6A6A60]">
         {label}
       </dt>
-      <dd className="mt-1 text-base font-black text-[#E0B65A]">{value}</dd>
+      <dd className="mt-1 text-base font-black text-[#F64618]">{value}</dd>
     </div>
   );
 }
 
-function ListingCard({ listing }: { listing: Listing }) {
-  const statusStyles =
-    listing.status === "Sealed"
-      ? "border-[#E0B65A]/50 bg-[#E0B65A]/10 text-[#E0B65A]"
-      : listing.status === "Reserved"
-      ? "border-[#B73A3A]/50 bg-[#B73A3A]/10 text-[#B73A3A]"
-      : "border-[#2a2a36] bg-[#2a2a36] text-[#8a8794]";
+type Variant = "ink" | "accent" | "muted";
 
+function ListingCard({
+  listing,
+  variant,
+}: {
+  listing: Listing;
+  variant: Variant;
+}) {
   const sold = listing.status === "Sold";
+
+  const palette = (() => {
+    if (variant === "accent") {
+      return {
+        card: "bg-[#F64618] text-[#E2E2DA] border-[#0A0A0A]",
+        ink: "text-[#E2E2DA]",
+        mute: "text-[#E2E2DA]/70",
+        rule: "border-[#E2E2DA]/30",
+        statusBox:
+          "border-[#0A0A0A] bg-[#0A0A0A] text-[#E2E2DA]",
+        priceColor: "text-[#0A0A0A]",
+        accentText: "text-[#0A0A0A]",
+        cta: "border-[#0A0A0A] bg-[#0A0A0A] text-[#E2E2DA] hover:bg-[#E2E2DA] hover:text-[#0A0A0A]",
+      };
+    }
+    if (variant === "muted") {
+      return {
+        card: "bg-[#E2E2DA] text-[#0A0A0A] border-[#0A0A0A] opacity-70",
+        ink: "text-[#0A0A0A]",
+        mute: "text-[#6A6A60]",
+        rule: "border-[#0A0A0A]/40",
+        statusBox: "border-[#0A0A0A] bg-[#0A0A0A] text-[#E2E2DA]",
+        priceColor: "text-[#0A0A0A]/70",
+        accentText: "text-[#F64618]",
+        cta: "pointer-events-none border-[#0A0A0A] text-[#6A6A60]",
+      };
+    }
+    return {
+      card: "bg-[#0A0A0A] text-[#E2E2DA] border-[#0A0A0A]",
+      ink: "text-[#E2E2DA]",
+      mute: "text-[#E2E2DA]/60",
+      rule: "border-[#E2E2DA]/20",
+      statusBox: "border-[#F64618] bg-[#F64618] text-[#E2E2DA]",
+      priceColor: "text-[#F64618]",
+      accentText: "text-[#F64618]",
+      cta: "border-[#F64618] bg-[#F64618] text-[#E2E2DA] hover:bg-[#E2E2DA] hover:text-[#0A0A0A] hover:border-[#E2E2DA]",
+    };
+  })();
 
   return (
     <article
-      className={`group flex flex-col border border-[#2a2a36] bg-[#14141b] p-6 transition hover:border-[#E0B65A] ${
-        sold ? "opacity-70" : ""
-      }`}
+      className={`group flex flex-col border-2 p-6 transition ${palette.card}`}
     >
       <header className="flex items-start justify-between">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#8a8794]">
+        <span
+          className={`font-mono text-[10px] font-bold uppercase tracking-[0.22em] ${palette.mute}`}
+        >
           iNFT #{listing.id}
         </span>
         <span
-          className={`border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.22em] ${statusStyles}`}
+          className={`border-2 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.22em] ${palette.statusBox}`}
         >
           {listing.status}
         </span>
       </header>
 
       <h3 className="mt-5 text-xl font-black">{listing.name}</h3>
-      <p className="mt-1 font-mono text-[11px] text-[#8a8794]">
-        base · <span className="text-[#F5F2EB]">{listing.base}</span> · LoRA r=
+      <p className={`mt-1 font-mono text-[11px] ${palette.mute}`}>
+        base · <span className={palette.ink}>{listing.base}</span> · LoRA r=
         {listing.rank}
       </p>
 
-      <div className="mt-5 border-t border-[#2a2a36] pt-4 font-mono text-[11px] leading-6 text-[#F5F2EB]/85">
+      <div
+        className={`mt-5 border-t-2 pt-4 font-mono text-[11px] leading-6 ${palette.rule}`}
+      >
         <div className="flex justify-between">
-          <span className="text-[#8a8794]">domain</span>
+          <span className={palette.mute}>domain</span>
           <span>{listing.domain}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#8a8794]">weights</span>
+          <span className={palette.mute}>weights</span>
           <span>{listing.sizeMb.toFixed(1)} MB</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#8a8794]">{listing.metric.label}</span>
-          <span className="text-[#E0B65A]">{listing.metric.value}</span>
+          <span className={palette.mute}>{listing.metric.label}</span>
+          <span className={`font-bold ${palette.accentText}`}>
+            {listing.metric.value}
+          </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#8a8794]">seller</span>
+          <span className={palette.mute}>seller</span>
           <span>{listing.seller}</span>
         </div>
       </div>
 
-      <footer className="mt-6 flex items-end justify-between border-t border-[#2a2a36] pt-5">
+      <footer
+        className={`mt-6 flex items-end justify-between border-t-2 pt-5 ${palette.rule}`}
+      >
         <div>
-          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#8a8794]">
+          <p
+            className={`font-mono text-[9px] font-bold uppercase tracking-[0.24em] ${palette.mute}`}
+          >
             Price
           </p>
-          <p className="mt-1 font-mono text-xl font-black text-[#E0B65A]">
+          <p
+            className={`mt-1 font-mono text-2xl font-black ${palette.priceColor}`}
+          >
             {listing.priceOg.toFixed(2)} <span className="text-sm">OG</span>
           </p>
         </div>
         <Link
           href={sold ? "#" : "/builder"}
           aria-disabled={sold}
-          className={`inline-flex items-center gap-2 border-2 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] transition ${
-            sold
-              ? "pointer-events-none border-[#2a2a36] text-[#8a8794]"
-              : "border-[#E0B65A] bg-transparent text-[#E0B65A] hover:bg-[#E0B65A] hover:text-[#0A0A0F]"
-          }`}
+          className={`inline-flex items-center gap-2 border-2 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] transition ${palette.cta}`}
         >
           {sold ? "Sold" : "Unseal →"}
         </Link>

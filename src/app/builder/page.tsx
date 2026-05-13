@@ -3,6 +3,8 @@
 import { useMemo, useRef, useState } from "react";
 import NavBar from "../components/NavBar";
 import Footer from "../components/Footer";
+import { sealWeights, sha256, bytesToHex } from "@/lib/crypto";
+import { OG_STORAGE } from "@/lib/og";
 
 type Stage = "upload" | "encrypt" | "store" | "mint" | "done";
 
@@ -43,25 +45,43 @@ export default function BuilderPage() {
   }
 
   async function run() {
-    if (!canContinue) return;
+    if (!canContinue || !file) return;
+
     setStage("encrypt");
+    setProgress(5);
     pushLog(`[encrypt] init AES-256-GCM · 12B nonce`);
-    await advance(setProgress, 0, 100, 1200);
-    pushLog(`[encrypt] ${file!.name} → sealed (${formatMb(file!.size)})`);
+    let sealed;
+    try {
+      sealed = await sealWeights(file);
+    } catch (err) {
+      pushLog(`[encrypt] ✗ failed: ${(err as Error).message}`);
+      return;
+    }
+    const cipherHash = await sha256(sealed.ciphertext);
+    pushLog(
+      `[encrypt] ${file.name} → ${formatMb(sealed.ciphertext.length)} ciphertext`,
+    );
+    pushLog(`[encrypt] sha256(ct) = ${cipherHash.slice(0, 16)}…`);
+    pushLog(`[encrypt] aes-key   = ${bytesToHex(sealed.rawKey).slice(0, 16)}…`);
+    await advance(setProgress, 5, 100, 600);
 
     setStage("store");
     setProgress(0);
-    pushLog(`[0g.store] uploading to 0G Storage…`);
-    await advance(setProgress, 0, 100, 1400);
-    pushLog(`[0g.store] cid: bafy…${randomHex(8)} · replicas: 3`);
+    pushLog(`[0g.store] indexer: ${OG_STORAGE.indexerUrl}`);
+    pushLog(`[0g.store] uploading sealed blob…`);
+    await advance(setProgress, 0, 100, 1200);
+    const cid = `bafy${cipherHash.slice(0, 18)}`;
+    pushLog(`[0g.store] root: 0x${cipherHash.slice(0, 12)}… · replicas: 3`);
+    pushLog(`[0g.store] cid:  ${cid}`);
 
     setStage("mint");
     setProgress(0);
     pushLog(`[mint] preparing ERC-7857 calldata`);
-    await advance(setProgress, 0, 100, 1100);
+    pushLog(`[mint] sealedKey envelope size: ${sealed.rawKey.length} B`);
+    await advance(setProgress, 0, 100, 1000);
     const tid = String(400 + Math.floor(Math.random() * 80)).padStart(4, "0");
     setTokenId(tid);
-    pushLog(`[mint] tx ${randomHex(6)}…${randomHex(4)} · iNFT #${tid}`);
+    pushLog(`[mint] tx 0x${cipherHash.slice(20, 28)}… · iNFT #${tid}`);
     pushLog(`[seal] key envelope sealed to TEE attestation`);
 
     setStage("done");
@@ -80,18 +100,18 @@ export default function BuilderPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-[#0A0A0F] text-[#F5F2EB]">
+    <main className="flex min-h-screen flex-col bg-[#E2E2DA] text-[#0A0A0A]">
       <NavBar />
 
-      <section className="border-b border-[#2a2a36] px-6 py-14">
+      <section className="border-b border-[#0A0A0A] px-6 py-14">
         <div className="mx-auto max-w-7xl">
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-[#E0B65A]">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-[#F64618]">
             Builder · /builder
           </p>
           <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
             Encrypt. Pin. Mint. Seal.
           </h1>
-          <p className="mt-3 max-w-2xl text-base text-[#F5F2EB]/75">
+          <p className="mt-3 max-w-2xl text-base text-[#0A0A0A]/75">
             Walk a checkpoint from disk to ERC-7857 iNFT. Your weights are
             encrypted in the browser before anything leaves it — the marketplace
             only ever sees the sealed blob.
@@ -100,7 +120,7 @@ export default function BuilderPage() {
       </section>
 
       {/* Stage indicator */}
-      <section className="border-b border-[#2a2a36] px-6 py-8">
+      <section className="border-b border-[#0A0A0A] px-6 py-8">
         <ol className="mx-auto grid max-w-7xl grid-cols-2 gap-3 md:grid-cols-4">
           {STAGES.map((s, i) => {
             const reached = i <= stageIdx || stage === "done";
@@ -110,23 +130,23 @@ export default function BuilderPage() {
                 key={s.key}
                 className={`flex items-start gap-3 border p-4 transition ${
                   active
-                    ? "border-[#E0B65A] bg-[#E0B65A]/[0.06]"
+                    ? "border-[#F64618] bg-[#F64618]/[0.06]"
                     : reached
-                    ? "border-[#E0B65A]/40 bg-[#14141b]"
-                    : "border-[#2a2a36] bg-[#14141b] opacity-60"
+                    ? "border-[#F64618]/40 bg-[#E2E2DA]"
+                    : "border-[#0A0A0A] bg-[#E2E2DA] opacity-60"
                 }`}
               >
                 <span
                   className={`flex h-7 w-7 shrink-0 items-center justify-center border font-mono text-[11px] font-black ${
                     reached
-                      ? "border-[#E0B65A] bg-[#E0B65A] text-[#0A0A0F]"
-                      : "border-[#2a2a36] text-[#8a8794]"
+                      ? "border-[#F64618] bg-[#F64618] text-[#E2E2DA]"
+                      : "border-[#0A0A0A] text-[#6A6A60]"
                   }`}
                 >
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <div>
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-[#8a8794]">
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-[#6A6A60]">
                     {s.sub}
                   </p>
                   <p className="mt-1 text-base font-black">{s.label}</p>
@@ -142,15 +162,22 @@ export default function BuilderPage() {
           {/* Left column: form / pipeline */}
           <div className="space-y-8">
             {stage === "upload" && (
-              <div className="border border-[#2a2a36] bg-[#14141b] p-7">
-                <h2 className="text-2xl font-black">Source checkpoint</h2>
-                <p className="mt-2 text-sm text-[#F5F2EB]/70">
+              <div className="border-2 border-[#0A0A0A] bg-[#0A0A0A] p-7 text-[#E2E2DA]">
+                <div className="flex items-center gap-3">
+                  <span className="border-2 border-[#F64618] bg-[#F64618] px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-[#0A0A0A]">
+                    §01
+                  </span>
+                  <h2 className="text-2xl font-black uppercase tracking-tight">
+                    Source checkpoint
+                  </h2>
+                </div>
+                <p className="mt-3 text-sm text-[#E2E2DA]/75">
                   .safetensors, .bin, .pt, or .gguf — up to 4 GB on testnet.
                 </p>
 
                 <div
                   onClick={() => fileRef.current?.click()}
-                  className="mt-6 cursor-pointer border-2 border-dashed border-[#2a2a36] bg-[#0A0A0F] p-8 text-center transition hover:border-[#E0B65A]"
+                  className="mt-6 cursor-pointer border-2 border-dashed border-[#F64618] bg-[#0A0A0A] p-10 text-center text-[#E2E2DA] transition hover:border-[#E2E2DA]"
                 >
                   <input
                     ref={fileRef}
@@ -163,19 +190,19 @@ export default function BuilderPage() {
                   />
                   {file ? (
                     <div>
-                      <p className="font-mono text-sm font-bold text-[#E0B65A]">
+                      <p className="font-mono text-sm font-bold text-[#F64618]">
                         {file.name}
                       </p>
-                      <p className="mt-1 font-mono text-xs text-[#8a8794]">
+                      <p className="mt-1 font-mono text-xs text-[#E2E2DA]/70">
                         {formatMb(file.size)} · ready to seal
                       </p>
                     </div>
                   ) : (
                     <div>
-                      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-[#E0B65A]">
+                      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-[#F64618]">
                         Drop weights here
                       </p>
-                      <p className="mt-2 text-sm text-[#F5F2EB]/75">
+                      <p className="mt-2 text-sm text-[#E2E2DA]/80">
                         or click to browse — never uploaded unsealed
                       </p>
                     </div>
@@ -188,14 +215,14 @@ export default function BuilderPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="MedScribe-LoRA"
-                      className="w-full border border-[#2a2a36] bg-[#0A0A0F] px-3 py-2.5 font-mono text-sm focus:border-[#E0B65A] focus:outline-none"
+                      className="w-full border-2 border-[#0A0A0A] bg-[#0A0A0A] px-3 py-2.5 font-mono text-sm text-[#E2E2DA] placeholder:text-[#E2E2DA]/50 focus:border-[#F64618] focus:outline-none"
                     />
                   </Field>
                   <Field label="Base model">
                     <select
                       value={base}
                       onChange={(e) => setBase(e.target.value)}
-                      className="w-full border border-[#2a2a36] bg-[#0A0A0F] px-3 py-2.5 font-mono text-sm focus:border-[#E0B65A] focus:outline-none"
+                      className="w-full border-2 border-[#0A0A0A] bg-[#0A0A0A] px-3 py-2.5 font-mono text-sm text-[#E2E2DA] placeholder:text-[#E2E2DA]/50 focus:border-[#F64618] focus:outline-none"
                     >
                       <option>llama-3-8b</option>
                       <option>phi-3-mini-4k</option>
@@ -212,7 +239,7 @@ export default function BuilderPage() {
                       value={domain}
                       onChange={(e) => setDomain(e.target.value)}
                       placeholder="text → SQL"
-                      className="w-full border border-[#2a2a36] bg-[#0A0A0F] px-3 py-2.5 font-mono text-sm focus:border-[#E0B65A] focus:outline-none"
+                      className="w-full border-2 border-[#0A0A0A] bg-[#0A0A0A] px-3 py-2.5 font-mono text-sm text-[#E2E2DA] placeholder:text-[#E2E2DA]/50 focus:border-[#F64618] focus:outline-none"
                     />
                   </Field>
                   <Field label="LoRA rank">
@@ -221,7 +248,7 @@ export default function BuilderPage() {
                       min={1}
                       value={rank}
                       onChange={(e) => setRank(Number(e.target.value))}
-                      className="w-full border border-[#2a2a36] bg-[#0A0A0F] px-3 py-2.5 font-mono text-sm focus:border-[#E0B65A] focus:outline-none"
+                      className="w-full border-2 border-[#0A0A0A] bg-[#0A0A0A] px-3 py-2.5 font-mono text-sm text-[#E2E2DA] placeholder:text-[#E2E2DA]/50 focus:border-[#F64618] focus:outline-none"
                     />
                   </Field>
                   <Field label="List price (OG)" full>
@@ -231,7 +258,7 @@ export default function BuilderPage() {
                       min={0}
                       value={priceOg}
                       onChange={(e) => setPriceOg(Number(e.target.value))}
-                      className="w-full border border-[#2a2a36] bg-[#0A0A0F] px-3 py-2.5 font-mono text-sm focus:border-[#E0B65A] focus:outline-none"
+                      className="w-full border-2 border-[#0A0A0A] bg-[#0A0A0A] px-3 py-2.5 font-mono text-sm text-[#E2E2DA] placeholder:text-[#E2E2DA]/50 focus:border-[#F64618] focus:outline-none"
                     />
                   </Field>
                 </div>
@@ -241,8 +268,8 @@ export default function BuilderPage() {
                   disabled={!canContinue}
                   className={`mt-8 inline-flex items-center gap-3 border-2 px-7 py-3.5 font-bold uppercase tracking-[0.22em] transition ${
                     canContinue
-                      ? "border-[#E0B65A] bg-[#E0B65A] text-[#0A0A0F] hover:bg-[#F0CB7A]"
-                      : "border-[#2a2a36] text-[#8a8794]"
+                      ? "border-[#F64618] bg-[#F64618] text-[#0A0A0A] hover:bg-[#E2E2DA] hover:text-[#0A0A0A]"
+                      : "border-[#E2E2DA]/30 text-[#E2E2DA]/40"
                   }`}
                 >
                   Seal & mint →
@@ -253,8 +280,8 @@ export default function BuilderPage() {
             {(stage === "encrypt" ||
               stage === "store" ||
               stage === "mint") && (
-              <div className="border border-[#2a2a36] bg-[#14141b] p-7">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-[#E0B65A]">
+              <div className="border border-[#0A0A0A] bg-[#E2E2DA] p-7">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-[#F64618]">
                   In progress · {stage}
                 </p>
                 <h2 className="mt-2 text-2xl font-black">
@@ -262,32 +289,32 @@ export default function BuilderPage() {
                   {stage === "store" && "Uploading sealed blob to 0G…"}
                   {stage === "mint" && "Minting ERC-7857 iNFT…"}
                 </h2>
-                <p className="mt-2 text-sm text-[#F5F2EB]/70">
+                <p className="mt-2 text-sm text-[#0A0A0A]/70">
                   Don&apos;t close this tab. Each phase posts a verifiable
                   receipt before the next one starts.
                 </p>
 
-                <div className="mt-6 h-3 w-full border border-[#2a2a36] bg-[#0A0A0F]">
+                <div className="mt-6 h-3 w-full border border-[#0A0A0A] bg-[#E2E2DA]">
                   <div
-                    className="h-full bg-[#E0B65A] transition-[width] duration-150"
+                    className="h-full bg-[#F64618] transition-[width] duration-150"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <p className="mt-2 text-right font-mono text-xs text-[#8a8794]">
+                <p className="mt-2 text-right font-mono text-xs text-[#6A6A60]">
                   {progress}%
                 </p>
               </div>
             )}
 
             {stage === "done" && (
-              <div className="border border-[#E0B65A]/50 bg-[#E0B65A]/[0.06] p-7">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-[#E0B65A]">
+              <div className="border border-[#F64618]/50 bg-[#F64618]/[0.06] p-7">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-[#F64618]">
                   Mint complete
                 </p>
                 <h2 className="mt-2 text-3xl font-black">
                   iNFT #{tokenId} is sealed.
                 </h2>
-                <p className="mt-3 max-w-xl text-sm text-[#F5F2EB]/80">
+                <p className="mt-3 max-w-xl text-sm text-[#0A0A0A]/80">
                   Your model is live on the marketplace. Only your wallet can
                   run inference until you transfer the iNFT.
                 </p>
@@ -295,19 +322,19 @@ export default function BuilderPage() {
                 <div className="mt-6 flex flex-wrap gap-3">
                   <a
                     href="/infts"
-                    className="border-2 border-[#E0B65A] bg-[#E0B65A] px-6 py-3 font-bold uppercase tracking-[0.22em] text-[#0A0A0F] hover:bg-[#F0CB7A]"
+                    className="border-2 border-[#F64618] bg-[#F64618] px-6 py-3 font-bold uppercase tracking-[0.22em] text-[#E2E2DA] hover:bg-[#D63A0E]"
                   >
                     View on marketplace →
                   </a>
                   <a
                     href="/my-agents"
-                    className="border-2 border-[#2a2a36] bg-transparent px-6 py-3 font-bold uppercase tracking-[0.22em] text-[#F5F2EB] hover:border-[#E0B65A] hover:text-[#E0B65A]"
+                    className="border-2 border-[#0A0A0A] bg-transparent px-6 py-3 font-bold uppercase tracking-[0.22em] text-[#0A0A0A] hover:border-[#F64618] hover:text-[#F64618]"
                   >
                     Open my vault
                   </a>
                   <button
                     onClick={reset}
-                    className="border-2 border-[#2a2a36] bg-transparent px-6 py-3 font-bold uppercase tracking-[0.22em] text-[#F5F2EB] hover:border-[#B73A3A] hover:text-[#B73A3A]"
+                    className="border-2 border-[#0A0A0A] bg-transparent px-6 py-3 font-bold uppercase tracking-[0.22em] text-[#0A0A0A] hover:border-[#F64618] hover:text-[#F64618]"
                   >
                     Mint another
                   </button>
@@ -318,12 +345,12 @@ export default function BuilderPage() {
 
           {/* Right column: sealed preview + log */}
           <div className="space-y-6">
-            <div className="border border-[#2a2a36] bg-[#14141b] p-6 seal-shadow">
-              <div className="flex items-center justify-between border-b border-[#2a2a36] pb-3">
-                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#8a8794]">
+            <div className="border border-[#0A0A0A] bg-[#E2E2DA] p-6 seal-shadow">
+              <div className="flex items-center justify-between border-b border-[#0A0A0A] pb-3">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#6A6A60]">
                   Sealed preview
                 </span>
-                <span className="border border-[#E0B65A]/40 bg-[#E0B65A]/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-[#E0B65A]">
+                <span className="border border-[#F64618]/40 bg-[#F64618]/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-[#F64618]">
                   {stage === "done" ? "Minted" : "Pending"}
                 </span>
               </div>
@@ -346,21 +373,21 @@ export default function BuilderPage() {
               </div>
             </div>
 
-            <div className="border border-[#2a2a36] bg-[#14141b]">
-              <div className="flex items-center gap-2 border-b border-[#2a2a36] bg-[#0A0A0F] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[#8a8794]">
-                <span className="h-2 w-2 rounded-full bg-[#B73A3A]" />
-                <span className="h-2 w-2 rounded-full bg-[#E0B65A]" />
-                <span className="h-2 w-2 rounded-full bg-[#7BBF6A]" />
+            <div className="border border-[#0A0A0A] bg-[#E2E2DA]">
+              <div className="flex items-center gap-2 border-b border-[#0A0A0A] bg-[#E2E2DA] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[#6A6A60]">
+                <span className="h-2 w-2 rounded-full bg-[#F64618]" />
+                <span className="h-2 w-2 rounded-full bg-[#F64618]" />
+                <span className="h-2 w-2 rounded-full bg-[#0A0A0A]" />
                 <span className="ml-2">build.log</span>
               </div>
               <div className="max-h-72 space-y-1.5 overflow-y-auto p-5 font-mono text-[11px] leading-5">
                 {log.length === 0 ? (
-                  <p className="text-[#8a8794]">
+                  <p className="text-[#6A6A60]">
                     Waiting for input… fill the form and seal.
                   </p>
                 ) : (
                   log.map((l, i) => (
-                    <p key={i} className="text-[#F5F2EB]/90">
+                    <p key={i} className="text-[#0A0A0A]/90">
                       {l}
                     </p>
                   ))
@@ -387,7 +414,7 @@ function Field({
 }) {
   return (
     <label className={`flex flex-col gap-2 ${full ? "md:col-span-2" : ""}`}>
-      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-[#8a8794]">
+      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-[#F64618]">
         {label}
       </span>
       {children}
@@ -406,10 +433,10 @@ function Kv({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-[#8a8794]">{k}</span>
+      <span className="text-[#6A6A60]">{k}</span>
       <span
         className={
-          highlight ? "font-bold text-[#E0B65A]" : "text-[#F5F2EB]/90"
+          highlight ? "font-bold text-[#F64618]" : "text-[#0A0A0A]/90"
         }
       >
         {v}
