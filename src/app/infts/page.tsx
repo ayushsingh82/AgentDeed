@@ -1,0 +1,321 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import NavBar from "../components/NavBar";
+import Footer from "../components/Footer";
+
+type Listing = {
+  id: string;
+  name: string;
+  base: string;
+  domain: string;
+  rank: number;
+  sizeMb: number;
+  priceOg: number;
+  metric: { label: string; value: string };
+  status: "Sealed" | "Sold" | "Reserved";
+  seller: string;
+  trainedAt: string;
+};
+
+const LISTINGS: Listing[] = [
+  {
+    id: "0427",
+    name: "MedScribe-LoRA",
+    base: "phi-3-mini-4k",
+    domain: "medical Q&A",
+    rank: 16,
+    sizeMb: 142.6,
+    priceOg: 5.0,
+    metric: { label: "MMLU-med", value: "+11.2" },
+    status: "Sealed",
+    seller: "0xa1c4…f3",
+    trainedAt: "2 weeks ago",
+  },
+  {
+    id: "0431",
+    name: "SolidityAuditor-v2",
+    base: "llama-3-8b",
+    domain: "smart-contract review",
+    rank: 32,
+    sizeMb: 286.4,
+    priceOg: 12.5,
+    metric: { label: "SWC-coverage", value: "94%" },
+    status: "Sealed",
+    seller: "0x9b…41",
+    trainedAt: "3 days ago",
+  },
+  {
+    id: "0438",
+    name: "JP→EN-Manga-Tone",
+    base: "qwen2-7b",
+    domain: "JP→EN literary",
+    rank: 16,
+    sizeMb: 168.3,
+    priceOg: 3.2,
+    metric: { label: "BLEU", value: "+6.4" },
+    status: "Sealed",
+    seller: "0x55…ee",
+    trainedAt: "1 day ago",
+  },
+  {
+    id: "0399",
+    name: "RetailVoice-Adapter",
+    base: "mistral-7b",
+    domain: "support-call summarization",
+    rank: 8,
+    sizeMb: 76.1,
+    priceOg: 1.8,
+    metric: { label: "ROUGE-L", value: "+8.9" },
+    status: "Sold",
+    seller: "0x71…2a",
+    trainedAt: "1 month ago",
+  },
+  {
+    id: "0442",
+    name: "Sonnet-Style-LoRA",
+    base: "stable-diffusion-xl",
+    domain: "vintage-illustration",
+    rank: 32,
+    sizeMb: 211.7,
+    priceOg: 7.7,
+    metric: { label: "CLIP-sim", value: "0.81" },
+    status: "Sealed",
+    seller: "0xfa…07",
+    trainedAt: "5 days ago",
+  },
+  {
+    id: "0445",
+    name: "SQL-CoT-Adapter",
+    base: "deepseek-coder-6.7b",
+    domain: "text → SQL",
+    rank: 16,
+    sizeMb: 124.2,
+    priceOg: 4.4,
+    metric: { label: "Spider-EX", value: "78%" },
+    status: "Reserved",
+    seller: "0x12…bb",
+    trainedAt: "8 hours ago",
+  },
+  {
+    id: "0451",
+    name: "Whisper-Surgical-Notes",
+    base: "whisper-large-v3",
+    domain: "ASR medical",
+    rank: 8,
+    sizeMb: 64.8,
+    priceOg: 6.1,
+    metric: { label: "WER", value: "−32%" },
+    status: "Sealed",
+    seller: "0xdd…91",
+    trainedAt: "12 days ago",
+  },
+  {
+    id: "0454",
+    name: "Pixel-Logo-LoRA",
+    base: "flux-1-dev",
+    domain: "logo generation",
+    rank: 16,
+    sizeMb: 158.0,
+    priceOg: 2.9,
+    metric: { label: "Style-fit", value: "0.74" },
+    status: "Sealed",
+    seller: "0x4e…3c",
+    trainedAt: "yesterday",
+  },
+];
+
+const FILTERS = ["All", "Sealed", "Sold", "Reserved"] as const;
+
+export default function MarketplacePage() {
+  const [filter, setFilter] =
+    useState<(typeof FILTERS)[number]>("All");
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    return LISTINGS.filter((l) => {
+      if (filter !== "All" && l.status !== filter) return false;
+      if (!query.trim()) return true;
+      const q = query.toLowerCase();
+      return (
+        l.name.toLowerCase().includes(q) ||
+        l.base.toLowerCase().includes(q) ||
+        l.domain.toLowerCase().includes(q) ||
+        l.id.includes(q)
+      );
+    });
+  }, [filter, query]);
+
+  return (
+    <main className="flex min-h-screen flex-col bg-[#0A0A0F] text-[#F5F2EB]">
+      <NavBar />
+
+      <section className="border-b border-[#2a2a36] px-6 py-14">
+        <div className="mx-auto flex max-w-7xl flex-col gap-8">
+          <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
+            <div>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-[#E0B65A]">
+                Marketplace · /infts
+              </p>
+              <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
+                Sealed models for sale.
+              </h1>
+              <p className="mt-3 max-w-2xl text-base text-[#F5F2EB]/75">
+                Every listing is a working capability behind a TEE-sealed key.
+                Buy → key re-encrypts to you. Seller can no longer infer.
+              </p>
+            </div>
+            <Stats />
+          </div>
+
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2">
+              {FILTERS.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`border px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.2em] transition ${
+                    filter === f
+                      ? "border-[#E0B65A] bg-[#E0B65A] text-[#0A0A0F]"
+                      : "border-[#2a2a36] text-[#F5F2EB] hover:border-[#E0B65A]"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative w-full md:w-96">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by model, base, or token id…"
+                className="w-full border border-[#2a2a36] bg-[#14141b] px-4 py-3 pr-10 font-mono text-sm text-[#F5F2EB] placeholder:text-[#8a8794] focus:border-[#E0B65A] focus:outline-none"
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-[#8a8794]">
+                ⌘K
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-6 py-12">
+        <div className="mx-auto max-w-7xl">
+          {filtered.length === 0 ? (
+            <div className="border border-dashed border-[#2a2a36] p-16 text-center font-mono text-sm text-[#8a8794]">
+              No listings match the current filter.
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((l) => (
+                <ListingCard key={l.id} listing={l} />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <Footer />
+    </main>
+  );
+}
+
+function Stats() {
+  return (
+    <dl className="grid grid-cols-3 gap-3 font-mono text-xs">
+      <Stat label="Total listings" value="142" />
+      <Stat label="Sealed today" value="6" />
+      <Stat label="Volume · 7d" value="318 OG" />
+    </dl>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-[#2a2a36] bg-[#14141b] px-4 py-3">
+      <dt className="text-[9px] font-bold uppercase tracking-[0.24em] text-[#8a8794]">
+        {label}
+      </dt>
+      <dd className="mt-1 text-base font-black text-[#E0B65A]">{value}</dd>
+    </div>
+  );
+}
+
+function ListingCard({ listing }: { listing: Listing }) {
+  const statusStyles =
+    listing.status === "Sealed"
+      ? "border-[#E0B65A]/50 bg-[#E0B65A]/10 text-[#E0B65A]"
+      : listing.status === "Reserved"
+      ? "border-[#B73A3A]/50 bg-[#B73A3A]/10 text-[#B73A3A]"
+      : "border-[#2a2a36] bg-[#2a2a36] text-[#8a8794]";
+
+  const sold = listing.status === "Sold";
+
+  return (
+    <article
+      className={`group flex flex-col border border-[#2a2a36] bg-[#14141b] p-6 transition hover:border-[#E0B65A] ${
+        sold ? "opacity-70" : ""
+      }`}
+    >
+      <header className="flex items-start justify-between">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#8a8794]">
+          iNFT #{listing.id}
+        </span>
+        <span
+          className={`border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.22em] ${statusStyles}`}
+        >
+          {listing.status}
+        </span>
+      </header>
+
+      <h3 className="mt-5 text-xl font-black">{listing.name}</h3>
+      <p className="mt-1 font-mono text-[11px] text-[#8a8794]">
+        base · <span className="text-[#F5F2EB]">{listing.base}</span> · LoRA r=
+        {listing.rank}
+      </p>
+
+      <div className="mt-5 border-t border-[#2a2a36] pt-4 font-mono text-[11px] leading-6 text-[#F5F2EB]/85">
+        <div className="flex justify-between">
+          <span className="text-[#8a8794]">domain</span>
+          <span>{listing.domain}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[#8a8794]">weights</span>
+          <span>{listing.sizeMb.toFixed(1)} MB</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[#8a8794]">{listing.metric.label}</span>
+          <span className="text-[#E0B65A]">{listing.metric.value}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[#8a8794]">seller</span>
+          <span>{listing.seller}</span>
+        </div>
+      </div>
+
+      <footer className="mt-6 flex items-end justify-between border-t border-[#2a2a36] pt-5">
+        <div>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#8a8794]">
+            Price
+          </p>
+          <p className="mt-1 font-mono text-xl font-black text-[#E0B65A]">
+            {listing.priceOg.toFixed(2)} <span className="text-sm">OG</span>
+          </p>
+        </div>
+        <Link
+          href={sold ? "#" : "/builder"}
+          aria-disabled={sold}
+          className={`inline-flex items-center gap-2 border-2 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] transition ${
+            sold
+              ? "pointer-events-none border-[#2a2a36] text-[#8a8794]"
+              : "border-[#E0B65A] bg-transparent text-[#E0B65A] hover:bg-[#E0B65A] hover:text-[#0A0A0F]"
+          }`}
+        >
+          {sold ? "Sold" : "Unseal →"}
+        </Link>
+      </footer>
+    </article>
+  );
+}
