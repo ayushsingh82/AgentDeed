@@ -18,8 +18,8 @@ export default function VaultLogo({ size = 28, className }: Props) {
         width="52"
         height="48"
         rx="3"
-        fill="#14141B"
-        stroke="#E0B65A"
+        fill="#E2E2DA"
+        stroke="#0A0A0A"
         strokeWidth="2.6"
       />
       <rect
@@ -29,7 +29,7 @@ export default function VaultLogo({ size = 28, className }: Props) {
         height="36"
         rx="2"
         fill="none"
-        stroke="#E0B65A"
+        stroke="#0A0A0A"
         strokeWidth="1.4"
         opacity="0.55"
       />
@@ -38,16 +38,16 @@ export default function VaultLogo({ size = 28, className }: Props) {
         cy="34"
         r="11"
         fill="none"
-        stroke="#E0B65A"
+        stroke="#0A0A0A"
         strokeWidth="2.6"
       />
-      <circle cx="32" cy="34" r="3.4" fill="#E0B65A" />
+      <circle cx="32" cy="34" r="3.4" fill="#F64618" />
       <line
         x1="32"
         y1="34"
         x2="32"
         y2="20"
-        stroke="#E0B65A"
+        stroke="#0A0A0A"
         strokeWidth="2.4"
         strokeLinecap="round"
       />
@@ -56,12 +56,12 @@ export default function VaultLogo({ size = 28, className }: Props) {
         y1="34"
         x2="42"
         y2="42"
-        stroke="#E0B65A"
+        stroke="#0A0A0A"
         strokeWidth="2.4"
         strokeLinecap="round"
       />
-      <circle cx="14" cy="56" r="1.6" fill="#E0B65A" />
-      <circle cx="50" cy="56" r="1.6" fill="#E0B65A" />
+      <circle cx="14" cy="56" r="1.6" fill="#0A0A0A" />
+      <circle cx="50" cy="56" r="1.6" fill="#0A0A0A" />
     </svg>
   );
 }
