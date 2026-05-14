@@ -1,6 +1,6 @@
 import Link from "next/link";
-import NavBar from "./components/NavBar";
-import Footer from "./components/Footer";
+import NavBar from "@/components/NavBar";
+import Footer from "@/components/Footer";
 
 export default function Home() {
   return (
@@ -35,7 +35,7 @@ export default function Home() {
             </h1>
 
             <p className="mt-10 max-w-xl text-lg leading-8 text-[#0A0A0A]/85">
-              WeightVault is a sealed-key marketplace for fine-tunes.
+              AgentDeed is a sealed-key marketplace for fine-tunes.
               Encrypted weights live on{" "}
               <span className="border-b-2 border-[#F64618] font-bold">
                 0G Storage
@@ -481,7 +481,7 @@ const steps = [
     tag: "01",
     layer: "off-chain · browser",
     title: "Upload & Encrypt",
-    desc: "Pick a checkpoint, LoRA, or adapter. WeightVault encrypts it with AES-256-GCM client-side. Your raw weights never leave the browser unsealed.",
+    desc: "Pick a checkpoint, LoRA, or adapter. AgentDeed encrypts it with AES-256-GCM client-side. Your raw weights never leave the browser unsealed.",
     spec: "AES-256-GCM",
   },
   {
@@ -518,7 +518,7 @@ const pillars = [
   {
     kicker: "Usable capability",
     title: "Not just a JPEG of a model",
-    body: "Other marketplaces sell pointers. WeightVault sells inference rights — provable, exclusive, revoked on transfer. The token unlocks a working endpoint.",
+    body: "Other marketplaces sell pointers. AgentDeed sells inference rights — provable, exclusive, revoked on transfer. The token unlocks a working endpoint.",
   },
   {
     kicker: "Cryptographic exclusivity",

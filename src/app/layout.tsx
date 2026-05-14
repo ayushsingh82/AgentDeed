@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WeightVault — sealed-key marketplace for fine-tuned models",
+  title: "AgentDeed — sealed-key marketplace for fine-tuned models",
   description:
     "List your LoRA / fine-tune / adapter. Encrypted weights on 0G Storage. The iNFT is the model. Buy it → sealed key transfers → only you can run inference.",
 };

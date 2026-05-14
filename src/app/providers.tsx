@@ -23,7 +23,7 @@ const ogTestnet = defineChain({
 });
 
 const walletConfig = getDefaultConfig({
-  appName: "WeightVault",
+  appName: "AgentDeed",
   projectId:
     process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID",
   chains: [ogTestnet],

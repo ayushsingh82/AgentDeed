@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import NavBar from "../components/NavBar";
-import Footer from "../components/Footer";
+import NavBar from "@/components/NavBar";
+import Footer from "@/components/Footer";
 import { sealWeights, sha256, bytesToHex } from "@/lib/crypto";
 import { OG_STORAGE } from "@/lib/og";
 

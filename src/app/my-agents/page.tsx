@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import NavBar from "../components/NavBar";
-import Footer from "../components/Footer";
+import NavBar from "@/components/NavBar";
+import Footer from "@/components/Footer";
 
 type Owned = {
   id: string;

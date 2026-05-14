@@ -1,4 +1,4 @@
-import VaultLogo from "./VaultLogo";
+import AgentDeedLogo from "./AgentDeedLogo";
 
 export default function Footer() {
   return (
@@ -7,10 +7,10 @@ export default function Footer() {
         <div>
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-md border border-[#0A0A0A] bg-[#E2E2DA]">
-              <VaultLogo size={26} />
+              <AgentDeedLogo size={26} />
             </span>
             <span className="text-lg font-black tracking-tight">
-              Weight<span className="text-[#F64618]">Vault</span>
+              Agent<span className="text-[#F64618]">Deed</span>
             </span>
           </div>
           <p className="mt-4 max-w-xs text-sm leading-6 text-[#6A6A60]">
@@ -67,7 +67,7 @@ export default function Footer() {
       </div>
       <div className="border-t border-[#0A0A0A]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 text-xs text-[#6A6A60]">
-          <p>© {new Date().getFullYear()} WeightVault</p>
+          <p>© {new Date().getFullYear()} AgentDeed</p>
           <p className="font-mono uppercase tracking-[0.24em]">
             Sealed · Signed · On-chain
           </p>

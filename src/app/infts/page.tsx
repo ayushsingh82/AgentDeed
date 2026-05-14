@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import NavBar from "../components/NavBar";
-import Footer from "../components/Footer";
+import NavBar from "@/components/NavBar";
+import Footer from "@/components/Footer";
 
 type Listing = {
   id: string;

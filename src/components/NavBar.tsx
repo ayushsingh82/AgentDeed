@@ -2,12 +2,13 @@
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
-import VaultLogo from "./VaultLogo";
+import AgentDeedLogo from "./AgentDeedLogo";
 
 const links = [
   { label: "Marketplace", href: "/infts" },
   { label: "My Models", href: "/my-agents" },
   { label: "Builder", href: "/builder" },
+  { label: "Playground", href: "/playground" },
 ];
 
 export default function NavBar() {
@@ -16,10 +17,10 @@ export default function NavBar() {
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-4">
         <Link href="/" className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-md border border-[#0A0A0A] bg-[#E2E2DA]">
-            <VaultLogo size={26} />
+            <AgentDeedLogo size={26} />
           </span>
           <span className="text-xl font-black tracking-tight sm:text-2xl">
-            Weight<span className="text-[#F64618]">Vault</span>
+            Agent<span className="text-[#F64618]">Deed</span>
           </span>
         </Link>
 
