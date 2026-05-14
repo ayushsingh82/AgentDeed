@@ -1,0 +1,41 @@
+# AgentDeed — Task Tracker
+
+Tick `[x]` as items land. Keeps scope aligned across sessions.
+
+## Done
+
+- [x] Rebrand WeightVault → AgentDeed (UI, metadata, wallet config, README)
+- [x] Redraw logo as a sealed title deed; rename component AgentDeedLogo
+- [x] Production structure — components out of `app/`, `@/` alias imports
+- [x] `demo.md` walkthrough (live vs. simulated)
+- [x] Real ERC-7857 ABI in `src/lib/og.ts` (transfer/clone/authorizeUsage/mint)
+- [x] `src/lib/router.ts` — 0G Compute Router client (models, providers, chat)
+- [x] `src/app/api/inference/route.ts` — server-side Router proxy
+- [x] `/playground` — live inference UI with on-chain billing trace
+- [x] `npm run build` passes clean
+
+## Pending — 0G Compute
+
+- [ ] Obtain `OG_ROUTER_API_KEY` and verify `/playground` chat end-to-end
+- [ ] Add streaming (SSE) responses to `/playground`
+- [ ] Add image generation (sync + async job polling) to the Router client + UI
+- [ ] Surface live Router models on `/infts` instead of demo listings
+
+## Pending — ERC-7857 contract
+
+- [ ] Write/deploy the ERC-7857 INFT contract to 0G Galileo testnet
+- [ ] Set `NEXT_PUBLIC_AGENT_DEED_ADDRESS` to the deployed address
+- [ ] `src/lib/inft.ts` — viem client: mint, transfer, clone, authorizeUsage, reads
+- [ ] Wire `/builder` mint stage to a real on-chain `mint` call
+- [ ] Wire `/my-agents` + `/infts` to real contract reads (ownerOf, balanceOf)
+
+## Pending — 0G Storage
+
+- [ ] Integrate the 0G Storage SDK; replace the simulated pin in `/builder`
+- [ ] Return a real root hash / URI and store it in the iNFT `encryptedURI`
+
+## Pending — TEE oracle
+
+- [ ] Key-sealing crypto helpers in `crypto.ts` (seal AES key to owner pubkey)
+- [ ] TEE re-encryption flow on transfer (oracle proof + sealed key delivery)
+- [ ] Verify TEE attestation client-side before accepting a transfer proof
