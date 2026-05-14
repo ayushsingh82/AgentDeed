@@ -1,0 +1,18 @@
+{
+  "name": "agentdeed-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ERC-7857 Intelligent NFT contracts for AgentDeed on 0G Galileo",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/deploy.cjs --network ogGalileo",
+    "deploy:local": "hardhat run scripts/deploy.cjs"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "hardhat": "^2.22.18"
+  }
+}

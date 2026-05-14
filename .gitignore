@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -36,6 +37,11 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# hardhat / contracts build output
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
 
 # typescript
 *.tsbuildinfo

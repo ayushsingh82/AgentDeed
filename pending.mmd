@@ -23,8 +23,11 @@ Tick `[x]` as items land. Keeps scope aligned across sessions.
 
 ## Pending — ERC-7857 contract
 
-- [ ] Write/deploy the ERC-7857 INFT contract to 0G Galileo testnet
-- [ ] Set `NEXT_PUBLIC_AGENT_DEED_ADDRESS` to the deployed address
+- [x] Write the ERC-7857 INFT contract — `contracts/src/AgentDeed.sol`,
+      `IERC7857.sol`, `TEEOracle.sol`; Hardhat project, compiles clean
+- [x] Deploy script — `contracts/scripts/deploy.cjs` (TEEOracle + AgentDeed)
+- [ ] Deploy to 0G Galileo testnet (needs funded `DEPLOYER_PRIVATE_KEY`)
+- [ ] Set `NEXT_PUBLIC_AGENT_DEED_ADDRESS` + `NEXT_PUBLIC_TEE_ORACLE_ADDRESS`
 - [ ] `src/lib/inft.ts` — viem client: mint, transfer, clone, authorizeUsage, reads
 - [ ] Wire `/builder` mint stage to a real on-chain `mint` call
 - [ ] Wire `/my-agents` + `/infts` to real contract reads (ownerOf, balanceOf)
@@ -36,6 +39,11 @@ Tick `[x]` as items land. Keeps scope aligned across sessions.
 
 ## Pending — TEE oracle
 
-- [ ] Key-sealing crypto helpers in `crypto.ts` (seal AES key to owner pubkey)
-- [ ] TEE re-encryption flow on transfer (oracle proof + sealed key delivery)
-- [ ] Verify TEE attestation client-side before accepting a transfer proof
+- [x] Key-sealing crypto helpers in `crypto.ts` — `sealKey`/`unsealKey`,
+      vault ECDH keypairs, envelope encode/decode
+- [x] TEE re-encryption flow on transfer — on-chain `TEEOracle.verifyReseal`
+      wired into `AgentDeed.transfer`/`clone`
+- [x] Verify TEE attestation client-side — `src/lib/tee.ts`
+      (`verifyTeeAttestation` mirrors `TEEOracle.resealDigest`)
+- [ ] Register a real attested TEE signer via `TEEOracle.setSigner` once the
+      0G Compute TEE signing key is known
