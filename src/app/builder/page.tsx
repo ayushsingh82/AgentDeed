@@ -1,10 +1,13 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useAccount, useWalletClient } from "wagmi";
+import type { Hex } from "viem";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
 import { sealWeights, sha256, bytesToHex } from "@/lib/crypto";
-import { OG_STORAGE } from "@/lib/og";
+import { OG_STORAGE, AGENT_DEED_DEPLOYED, AGENT_DEED_CONTRACT } from "@/lib/og";
+import { mint, waitForMintedTokenId } from "@/lib/inft";
 
 type Stage = "upload" | "encrypt" | "store" | "mint" | "done";
 
@@ -31,6 +34,9 @@ export default function BuilderPage() {
   const [log, setLog] = useState<string[]>([]);
   const [tokenId, setTokenId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
 
   const stageIdx = STAGES.findIndex((s) => s.key === stage);
   const sealKey = useMemo(() => randomHex(48), []);
@@ -78,11 +84,45 @@ export default function BuilderPage() {
     setProgress(0);
     pushLog(`[mint] preparing ERC-7857 calldata`);
     pushLog(`[mint] sealedKey envelope size: ${sealed.rawKey.length} B`);
-    await advance(setProgress, 0, 100, 1000);
-    const tid = String(400 + Math.floor(Math.random() * 80)).padStart(4, "0");
-    setTokenId(tid);
-    pushLog(`[mint] tx 0x${cipherHash.slice(20, 28)}… · iNFT #${tid}`);
-    pushLog(`[seal] key envelope sealed to TEE attestation`);
+
+    const metadataHash = `0x${cipherHash}` as Hex;
+    const encryptedURI = `og://${cid}`;
+
+    if (AGENT_DEED_DEPLOYED && walletClient && address) {
+      try {
+        pushLog(
+          `[mint] mint() → ${AGENT_DEED_CONTRACT.slice(0, 10)}… · to ${address.slice(0, 8)}…`,
+        );
+        setProgress(25);
+        const hash = await mint(walletClient, {
+          to: address,
+          encryptedURI,
+          metadataHash,
+        });
+        pushLog(`[mint] tx ${hash.slice(0, 18)}… · awaiting receipt`);
+        setProgress(65);
+        const minted = await waitForMintedTokenId(hash);
+        const tid = String(minted).padStart(4, "0");
+        setTokenId(tid);
+        setProgress(100);
+        pushLog(`[mint] confirmed on-chain · iNFT #${tid}`);
+        pushLog(`[seal] key envelope sealed to TEE attestation`);
+      } catch (err) {
+        pushLog(`[mint] ✗ on-chain mint failed: ${(err as Error).message}`);
+        return;
+      }
+    } else {
+      pushLog(
+        AGENT_DEED_DEPLOYED
+          ? `[mint] no wallet connected — simulated mint`
+          : `[mint] NEXT_PUBLIC_AGENT_DEED_ADDRESS unset — simulated mint`,
+      );
+      await advance(setProgress, 0, 100, 1000);
+      const tid = String(400 + Math.floor(Math.random() * 80)).padStart(4, "0");
+      setTokenId(tid);
+      pushLog(`[mint] tx 0x${cipherHash.slice(20, 28)}… · iNFT #${tid}`);
+      pushLog(`[seal] key envelope sealed to TEE attestation`);
+    }
 
     setStage("done");
   }

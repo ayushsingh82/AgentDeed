@@ -30,8 +30,10 @@ Tick `[x]` as items land. Keeps scope aligned across sessions.
 - [ ] Set `NEXT_PUBLIC_AGENT_DEED_ADDRESS` + `NEXT_PUBLIC_TEE_ORACLE_ADDRESS`
 - [x] `src/lib/inft.ts` — viem client: mint, transfer, clone, authorizeUsage,
       reads (ownerOf/balanceOf/URI/hash/sealedKey), `listInfts`, mint-receipt parsing
-- [ ] Wire `/builder` mint stage to a real on-chain `mint` call
-- [ ] Wire `/my-agents` + `/infts` to real contract reads (ownerOf, balanceOf)
+- [x] Wire `/builder` mint stage to a real on-chain `mint` call
+      (falls back to simulated mint when no contract/wallet)
+- [x] Wire `/my-agents` to real contract reads (`listInfts` filtered by owner)
+- [ ] Wire `/infts` to real contract reads (still demo listings)
 
 ## Pending — 0G Storage
 

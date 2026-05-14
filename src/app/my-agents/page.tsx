@@ -1,65 +1,47 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
-
-type Owned = {
-  id: string;
-  name: string;
-  base: string;
-  domain: string;
-  sizeMb: number;
-  status: "Sealed (mine)" | "Listed" | "Draft";
-  priceOg?: number;
-  lastInfer?: string;
-  revenue?: number;
-};
-
-const OWNED: Owned[] = [
-  {
-    id: "0438",
-    name: "JP→EN-Manga-Tone",
-    base: "qwen2-7b",
-    domain: "JP→EN literary",
-    sizeMb: 168.3,
-    status: "Sealed (mine)",
-    lastInfer: "12m ago · 384 tok",
-  },
-  {
-    id: "0445",
-    name: "SQL-CoT-Adapter",
-    base: "deepseek-coder-6.7b",
-    domain: "text → SQL",
-    sizeMb: 124.2,
-    status: "Listed",
-    priceOg: 4.4,
-    revenue: 0,
-  },
-  {
-    id: "0399",
-    name: "RetailVoice-Adapter",
-    base: "mistral-7b",
-    domain: "support summarization",
-    sizeMb: 76.1,
-    status: "Listed",
-    priceOg: 1.8,
-    revenue: 14.4,
-  },
-  {
-    id: "draft-01",
-    name: "Legal-Brief-LoRA",
-    base: "llama-3-8b",
-    domain: "US case-law",
-    sizeMb: 222.0,
-    status: "Draft",
-  },
-];
+import { listInfts, type InftRecord } from "@/lib/inft";
+import { AGENT_DEED_CONTRACT, AGENT_DEED_DEPLOYED, OG_CHAIN } from "@/lib/og";
 
 export default function MyModelsPage() {
   const { isConnected, address } = useAccount();
+  const [infts, setInfts] = useState<InftRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isConnected || !address || !AGENT_DEED_DEPLOYED) {
+      setInfts([]);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    listInfts()
+      .then((all) => {
+        if (cancelled) return;
+        setInfts(
+          all.filter(
+            (t) => t.owner.toLowerCase() === address.toLowerCase(),
+          ),
+        );
+      })
+      .catch((e) => {
+        if (!cancelled) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, address]);
 
   return (
     <main className="flex min-h-screen flex-col bg-[#E2E2DA] text-[#0A0A0A]">
@@ -74,8 +56,8 @@ export default function MyModelsPage() {
             Your sealed weights.
           </h1>
           <p className="mt-3 max-w-2xl text-base text-[#0A0A0A]/75">
-            Models you own, list, or are still drafting. Inference is gated to
-            the current key holder — that&apos;s you, until you sell.
+            Models you own, read straight from the AgentDeed contract. Inference
+            is gated to the current key holder — that&apos;s you, until you sell.
           </p>
         </div>
       </section>
@@ -91,11 +73,27 @@ export default function MyModelsPage() {
             </h2>
             <p className="mt-3 max-w-md text-sm text-[#0A0A0A]/75">
               Ownership is on-chain. Connect a wallet on 0G Galileo to load the
-              iNFTs you hold, your listings, and revenue.
+              iNFTs you hold.
             </p>
             <div className="mt-8">
               <ConnectButton />
             </div>
+          </div>
+        </section>
+      ) : !AGENT_DEED_DEPLOYED ? (
+        <section className="px-6 py-24">
+          <div className="mx-auto max-w-2xl border border-[#F64618]/50 bg-[#F64618]/[0.06] p-10 text-center">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-[#F64618]">
+              Contract not configured
+            </p>
+            <h2 className="mt-4 text-2xl font-black">
+              No AgentDeed address set
+            </h2>
+            <p className="mt-3 text-sm text-[#0A0A0A]/75">
+              Deploy the ERC-7857 contract from <code>contracts/</code> and set{" "}
+              <code className="font-mono">NEXT_PUBLIC_AGENT_DEED_ADDRESS</code>{" "}
+              to load on-chain holdings.
+            </p>
           </div>
         </section>
       ) : (
@@ -103,9 +101,16 @@ export default function MyModelsPage() {
           <section className="border-b border-[#0A0A0A] px-6 py-10">
             <div className="mx-auto grid max-w-7xl gap-4 md:grid-cols-4">
               <SummaryStat label="Owner" value={shortAddr(address)} mono />
-              <SummaryStat label="Models in vault" value="3" />
-              <SummaryStat label="Listings · live" value="2" />
-              <SummaryStat label="Revenue · all-time" value="14.4 OG" accent />
+              <SummaryStat
+                label="Models in vault"
+                value={loading ? "…" : String(infts.length)}
+              />
+              <SummaryStat label="Network" value={OG_CHAIN.name} />
+              <SummaryStat
+                label="Contract"
+                value={shortAddr(AGENT_DEED_CONTRACT)}
+                mono
+              />
             </div>
           </section>
 
@@ -121,11 +126,30 @@ export default function MyModelsPage() {
                 </Link>
               </div>
 
-              <div className="mt-8 grid gap-6 md:grid-cols-2">
-                {OWNED.map((m) => (
-                  <OwnedCard key={m.id} model={m} />
-                ))}
-              </div>
+              {error && (
+                <p className="mt-6 border border-[#F64618]/50 bg-[#F64618]/[0.06] px-4 py-3 font-mono text-xs text-[#F64618]">
+                  Failed to read contract: {error}
+                </p>
+              )}
+
+              {loading ? (
+                <p className="mt-8 font-mono text-sm text-[#6A6A60]">
+                  Reading on-chain holdings…
+                </p>
+              ) : infts.length === 0 ? (
+                <p className="mt-8 font-mono text-sm text-[#6A6A60]">
+                  No iNFTs held by this wallet yet.{" "}
+                  <Link href="/builder" className="text-[#F64618] underline">
+                    Mint your first →
+                  </Link>
+                </p>
+              ) : (
+                <div className="mt-8 grid gap-6 md:grid-cols-2">
+                  {infts.map((m) => (
+                    <InftCard key={m.tokenId.toString()} inft={m} />
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         </>
@@ -168,85 +192,45 @@ function SummaryStat({
   );
 }
 
-function OwnedCard({ model }: { model: Owned }) {
-  const isDraft = model.status === "Draft";
-  const isListed = model.status === "Listed";
-  const statusStyles = isDraft
-    ? "border-[#0A0A0A] bg-[#0A0A0A] text-[#6A6A60]"
-    : isListed
-    ? "border-[#F64618]/50 bg-[#F64618]/10 text-[#F64618]"
-    : "border-[#F64618]/50 bg-[#F64618]/10 text-[#F64618]";
-
+function InftCard({ inft }: { inft: InftRecord }) {
+  const id = inft.tokenId.toString().padStart(4, "0");
   return (
     <article className="flex flex-col border border-[#0A0A0A] bg-[#E2E2DA] p-6 transition hover:border-[#F64618]">
       <header className="flex items-start justify-between">
         <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#6A6A60]">
-          iNFT #{model.id}
+          iNFT #{id}
         </span>
-        <span
-          className={`border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.22em] ${statusStyles}`}
-        >
-          {model.status}
+        <span className="border border-[#F64618]/50 bg-[#F64618]/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-[#F64618]">
+          Sealed (mine)
         </span>
       </header>
 
-      <h3 className="mt-5 text-xl font-black">{model.name}</h3>
-      <p className="mt-1 font-mono text-[11px] text-[#6A6A60]">
-        base · <span className="text-[#0A0A0A]">{model.base}</span> · {model.domain}
-      </p>
+      <h3 className="mt-5 break-all text-lg font-black">AgentDeed #{id}</h3>
 
       <div className="mt-5 border-t border-[#0A0A0A] pt-4 font-mono text-[11px] leading-6 text-[#0A0A0A]/85">
-        <div className="flex justify-between">
-          <span className="text-[#6A6A60]">weights</span>
-          <span>{model.sizeMb.toFixed(1)} MB</span>
+        <div className="flex justify-between gap-3">
+          <span className="text-[#6A6A60]">weights hash</span>
+          <span className="truncate">
+            {inft.metadataHash.slice(0, 10)}…{inft.metadataHash.slice(-6)}
+          </span>
         </div>
-        {model.priceOg !== undefined && (
-          <div className="flex justify-between">
-            <span className="text-[#6A6A60]">listed at</span>
-            <span className="text-[#F64618]">
-              {model.priceOg.toFixed(2)} OG
-            </span>
-          </div>
-        )}
-        {model.revenue !== undefined && (
-          <div className="flex justify-between">
-            <span className="text-[#6A6A60]">revenue</span>
-            <span>{model.revenue.toFixed(2)} OG</span>
-          </div>
-        )}
-        {model.lastInfer && (
-          <div className="flex justify-between">
-            <span className="text-[#6A6A60]">last infer</span>
-            <span>{model.lastInfer}</span>
-          </div>
-        )}
+        <div className="flex justify-between gap-3">
+          <span className="text-[#6A6A60]">storage uri</span>
+          <span className="truncate">{inft.encryptedURI || "—"}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-[#6A6A60]">owner</span>
+          <span>{shortAddr(inft.owner)}</span>
+        </div>
       </div>
 
       <footer className="mt-6 flex items-center justify-end gap-2 border-t border-[#0A0A0A] pt-5">
-        {isDraft && (
-          <Link
-            href="/builder"
-            className="border-2 border-[#F64618] bg-[#F64618] px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-[#E2E2DA] hover:bg-[#D63A0E]"
-          >
-            Continue minting
-          </Link>
-        )}
-        {isListed && (
-          <button
-            type="button"
-            className="border-2 border-[#F64618] bg-transparent px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-[#F64618] transition hover:bg-[#F64618] hover:text-[#E2E2DA]"
-          >
-            Delist
-          </button>
-        )}
-        {!isDraft && (
-          <button
-            type="button"
-            className="border-2 border-[#0A0A0A] bg-transparent px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-[#0A0A0A] transition hover:border-[#F64618] hover:text-[#F64618]"
-          >
-            Run inference →
-          </button>
-        )}
+        <Link
+          href="/playground"
+          className="border-2 border-[#0A0A0A] bg-transparent px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-[#0A0A0A] transition hover:border-[#F64618] hover:text-[#F64618]"
+        >
+          Run inference →
+        </Link>
       </footer>
     </article>
   );
