@@ -28,9 +28,12 @@ export const OG_ROUTER = {
   baseUrl: process.env.NEXT_PUBLIC_OG_ROUTER_URL ?? "https://router-api.0g.ai",
 } as const;
 
+// Deployed AgentDeed (ERC-7857) on 0G chain 16602. Hardcoded so the live
+// dapp loads without Vercel env config; NEXT_PUBLIC_AGENT_DEED_ADDRESS still
+// overrides for local/staging.
 export const AGENT_DEED_CONTRACT =
   (process.env.NEXT_PUBLIC_AGENT_DEED_ADDRESS as `0x${string}` | undefined) ??
-  ("0x0000000000000000000000000000000000000000" as const);
+  ("0x21cBA803EdB8676D06FAf9aCAb84611C98B7A370" as const);
 
 export const AGENT_DEED_DEPLOYED =
   AGENT_DEED_CONTRACT !== "0x0000000000000000000000000000000000000000";
