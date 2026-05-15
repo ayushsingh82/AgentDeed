@@ -1,6 +1,6 @@
 export const OG_CHAIN = {
-  id: 16601,
-  name: "0G Galileo Testnet",
+  id: 16602,
+  name: "0G",
   rpcUrl: "https://evmrpc-testnet.0g.ai",
   explorer: "https://chainscan-galileo.0g.ai",
   symbol: "OG",

@@ -11,9 +11,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 import { defineChain } from "viem";
 
-const ogTestnet = defineChain({
-  id: 16601,
-  name: "0G Galileo Testnet",
+const ogChain = defineChain({
+  id: 16602,
+  name: "0G",
   nativeCurrency: { name: "OG", symbol: "OG", decimals: 18 },
   rpcUrls: { default: { http: ["https://evmrpc-testnet.0g.ai"] } },
   blockExplorers: {
@@ -26,7 +26,7 @@ const walletConfig = getDefaultConfig({
   appName: "AgentDeed",
   projectId:
     process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID",
-  chains: [ogTestnet],
+  chains: [ogChain],
   ssr: true,
 });
 

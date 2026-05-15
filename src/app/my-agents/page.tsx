@@ -7,7 +7,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
 import { listInfts, type InftRecord } from "@/lib/inft";
-import { AGENT_DEED_CONTRACT, AGENT_DEED_DEPLOYED, OG_CHAIN } from "@/lib/og";
+import { AGENT_DEED_CONTRACT, AGENT_DEED_DEPLOYED } from "@/lib/og";
 
 export default function MyModelsPage() {
   const { isConnected, address } = useAccount();
@@ -72,8 +72,8 @@ export default function MyModelsPage() {
               Connect to view your vault
             </h2>
             <p className="mt-3 max-w-md text-sm text-[#0A0A0A]/75">
-              Ownership is on-chain. Connect a wallet on 0G Galileo to load the
-              iNFTs you hold.
+              Ownership is on-chain. Connect a wallet to load the iNFTs you
+              hold.
             </p>
             <div className="mt-8">
               <ConnectButton />
@@ -99,13 +99,12 @@ export default function MyModelsPage() {
       ) : (
         <>
           <section className="border-b border-[#0A0A0A] px-6 py-10">
-            <div className="mx-auto grid max-w-7xl gap-4 md:grid-cols-4">
+            <div className="mx-auto grid max-w-7xl gap-4 md:grid-cols-3">
               <SummaryStat label="Owner" value={shortAddr(address)} mono />
               <SummaryStat
                 label="Models in vault"
                 value={loading ? "…" : String(infts.length)}
               />
-              <SummaryStat label="Network" value={OG_CHAIN.name} />
               <SummaryStat
                 label="Contract"
                 value={shortAddr(AGENT_DEED_CONTRACT)}

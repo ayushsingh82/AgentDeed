@@ -17,9 +17,6 @@ export default function Home() {
                 <span className="h-1.5 w-1.5 rounded-full bg-[#E2E2DA] pulse-dot" />
                 ERC-7857 · sealed-key transfer
               </span>
-              <span className="hidden font-mono text-[10px] uppercase tracking-[0.3em] text-[#6A6A60] md:inline">
-                / hackathon-grade
-              </span>
             </div>
 
             <h1 className="mt-8 font-black uppercase leading-[0.88] tracking-tight">
@@ -40,7 +37,7 @@ export default function Home() {
               <span className="border-b-2 border-[#F64618] font-bold">
                 0G Storage
               </span>
-              . The iNFT <em>is</em> the model. Buy it → sealed key
+              . The iNFT <em>is</em> the model. Buy it → the sealed key
               transfers inside a TEE → only you can run inference.
             </p>
 
@@ -94,7 +91,7 @@ export default function Home() {
               </div>
 
               <p className="mt-4 font-mono text-[9px] uppercase tracking-[0.22em] text-[#6A6A60]">
-                0G Galileo · chain 16601
+                Settled on 0G
               </p>
             </div>
 
@@ -123,13 +120,11 @@ export default function Home() {
               <span>·</span>
               <span>ERC-7857</span>
               <span>·</span>
-              <span>0G Galileo</span>
+              <span>0G</span>
               <span>·</span>
               <span>TEE Inference</span>
               <span>·</span>
               <span>AES-256-GCM</span>
-              <span>·</span>
-              <span>Hackathon-grade</span>
               <span>·</span>
             </div>
           ))}
@@ -334,7 +329,7 @@ export default function Home() {
               §05 · Answers
             </p>
             <h2 className="mt-3 text-4xl font-black uppercase leading-[0.95] tracking-tight sm:text-5xl">
-              Things judges <span className="text-[#F64618]">always</span> ask.
+              Questions worth <span className="text-[#F64618]">answering</span>.
             </h2>
           </div>
           <dl className="space-y-0 border-2 border-[#0A0A0A]">
@@ -509,7 +504,7 @@ const steps = [
 
 const stats = [
   { label: "iNFTs minted", value: "142", note: "across 38 wallets" },
-  { label: "Capability transfers", value: "67", note: "all on 0G Galileo" },
+  { label: "Capability transfers", value: "67", note: "settled on 0G" },
   { label: "Avg. settle time", value: "1.8s", note: "from buy → inference" },
   { label: "Replication factor", value: "3×", note: "encrypted on 0G Storage" },
 ];
@@ -528,7 +523,7 @@ const pillars = [
   {
     kicker: "Chain-native settlement",
     title: "One tx, two outcomes",
-    body: "Payment, ownership flip, and capability transfer settle atomically on 0G Galileo. The buyer's first inference call is the receipt.",
+    body: "Payment, ownership flip, and capability transfer settle atomically on 0G. The buyer's first inference call is the receipt.",
   },
 ];
 

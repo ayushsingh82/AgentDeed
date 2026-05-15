@@ -5,7 +5,7 @@
 > can run inference.
 
 AgentDeed lists encrypted fine-tunes (LoRAs, adapters, full checkpoints) as
-ERC-7857 iNFTs on 0G Galileo. The encrypted weights live on **0G Storage**.
+ERC-7857 iNFTs on 0G. The encrypted weights live on **0G Storage**.
 The AES key that decrypts them is **sealed inside a TEE** and re-encrypted to
 the new owner on every transfer. Other marketplaces sell pointers to weights;
 AgentDeed sells the *capability to run them*.
@@ -34,7 +34,7 @@ same trust domain — which is what 0G gives you.
 | App          | Next.js 16 (App Router) · React 19 · TS       |
 | Styling      | Tailwind v4 · custom bone/black/orange theme  |
 | Wallet       | wagmi 2 · RainbowKit · viem                   |
-| Chain        | 0G Galileo Testnet (chain id `16601`)         |
+| Chain        | 0G (chain id `16602`)                         |
 | Storage      | 0G Storage (encrypted blobs, content-addr)    |
 | Token        | ERC-7857 iNFT with sealed-key envelope        |
 | Inference    | 0G Compute TEE provider (attested)            |
@@ -97,6 +97,22 @@ src/
     └── router.ts              ← 0G Compute Router client (models, providers, chat)
 ```
 
+## Deployed contracts
+
+Live on 0G (chain id `16602`).
+
+| Contract     | Address                                                                                                                          | Explorer                                                                                                              |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **AgentDeed** (ERC-7857) | `0x21cBA803EdB8676D06FAf9aCAb84611C98B7A370` | [chainscan-galileo.0g.ai/address/0x21cBA803EdB8676D06FAf9aCAb84611C98B7A370](https://chainscan-galileo.0g.ai/address/0x21cBA803EdB8676D06FAf9aCAb84611C98B7A370) |
+| **TEEOracle**            | `0xcF7294f6C6Ca09cae9b6832efbCffAB218e7d499` | [chainscan-galileo.0g.ai/address/0xcF7294f6C6Ca09cae9b6832efbCffAB218e7d499](https://chainscan-galileo.0g.ai/address/0xcF7294f6C6Ca09cae9b6832efbCffAB218e7d499) |
+
+First test mint: `tokenId 1`, tx
+[`0x84f5baf9b99e6b1e4d180a97eabe7decfaf980fe9ae5eca9a4a7b04f4ac60351`](https://chainscan-galileo.0g.ai/tx/0x84f5baf9b99e6b1e4d180a97eabe7decfaf980fe9ae5eca9a4a7b04f4ac60351).
+
+The oracle is deployed but **not wired** into AgentDeed — transfers/clones
+are permissionless on testnet until an attested TEE signer is registered via
+`TEEOracle.setSigner`.
+
 ## Running locally
 
 ```bash
@@ -104,24 +120,37 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-For wallet flows to work end-to-end you'll need a WalletConnect project id.
-Copy `.env.example` to `.env.local` and fill it in:
+Copy `.env.example` to `.env.local` and fill what you need:
 
 ```bash
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=...
 NEXT_PUBLIC_OG_INDEXER_URL=https://indexer-storage-testnet-turbo.0g.ai
 NEXT_PUBLIC_OG_KV_NODE_URL=https://rpc-storage-testnet-turbo.0g.ai
 NEXT_PUBLIC_OG_COMPUTE_BROKER_URL=https://compute-testnet.0g.ai
 NEXT_PUBLIC_OG_ROUTER_URL=https://router-api.0g.ai
-OG_ROUTER_API_KEY=sk-...                   # server-side; enables /playground chat
-NEXT_PUBLIC_AGENT_DEED_ADDRESS=0x...       # deploy your ERC-7857 first
+OG_ROUTER_API_KEY=sk-...                                              # server-side; enables /playground chat
+NEXT_PUBLIC_AGENT_DEED_ADDRESS=0x21cBA803EdB8676D06FAf9aCAb84611C98B7A370
+NEXT_PUBLIC_TEE_ORACLE_ADDRESS=0xcF7294f6C6Ca09cae9b6832efbCffAB218e7d499
 ```
 
-Defaults that ship in the code point at the public 0G Galileo testnet
-endpoints — most users won't need to override them. `OG_ROUTER_API_KEY` is the
-only secret: it's read server-side by `/api/inference` and never reaches the
-browser. Without it, `/playground` still loads the live model catalog but
-chat calls return a clear "not configured" error.
+Defaults that ship in the code point at the public 0G endpoints — most users
+won't need to override them. `OG_ROUTER_API_KEY` is the only secret: it's
+read server-side by `/api/inference` and never reaches the browser. Without
+it, `/playground` still loads the live model catalog but chat calls return a
+clear "not configured" error.
+
+### Deploy your own copy
+
+```bash
+cd contracts
+npm install
+npm run wallet:new         # writes a fresh EOA to contracts/.env
+# fund the printed address from https://faucet.0g.ai
+npm run deploy             # deploys TEEOracle + AgentDeed
+npm run mint:test          # optional — mints token #1 as a smoke test
+```
+
+The deploy script prints both `NEXT_PUBLIC_*` lines to paste into
+`.env.local`.
 
 ## Why ERC-7857 (and not 721 / 1155)
 
@@ -135,12 +164,16 @@ exclusivity rather than honor-system licensing.
 
 - ✅ Full UI for all five routes
 - ✅ Real client-side AES-256-GCM encryption via WebCrypto
-- ✅ Real `0G Galileo` wallet config and chain switching via RainbowKit
-- ✅ ABI + constants for the `AgentDeed` ERC-7857 contract
+- ✅ Real `0G` wallet config and chain switching via RainbowKit
+- ✅ `AgentDeed` + `TEEOracle` deployed live on 0G (see addresses above)
+- ✅ `/infts` and `/my-agents` read live state via the viem multicall client
+- ✅ `/builder` mint stage submits a real on-chain `mint` tx (with a
+  simulated-mint fallback for unconfigured environments)
 - ✅ Live 0G Compute Router inference — `/playground` calls real TEE-attested
   providers through the `/api/inference` proxy, with on-chain billing traces
-- ⏳ Live 0G Storage upload — wired through env vars, contract deploy pending
-- ⏳ TEE re-encryption on transfer — ERC-7857 ABI ready, contract deploy pending
+- ⏳ Live 0G Storage upload — currently simulated; SDK wiring is the next milestone
+- ⏳ TEE re-encryption on transfer — contract path ready; awaits an attested
+  TEE signer registered via `TEEOracle.setSigner`
 
 ## License
 

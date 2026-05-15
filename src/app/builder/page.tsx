@@ -212,7 +212,7 @@ export default function BuilderPage() {
                   </h2>
                 </div>
                 <p className="mt-3 text-sm text-[#E2E2DA]/75">
-                  .safetensors, .bin, .pt, or .gguf — up to 4 GB on testnet.
+                  .safetensors, .bin, .pt, or .gguf — up to 4 GB.
                 </p>
 
                 <div

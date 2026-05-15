@@ -13,34 +13,34 @@ Tick `[x]` as items land. Keeps scope aligned across sessions.
 - [x] `src/app/api/inference/route.ts` — server-side Router proxy
 - [x] `/playground` — live inference UI with on-chain billing trace
 - [x] `npm run build` passes clean
+- [x] Landing-page copy: remove "hackathon"/"judges" framing, soften
+      testnet/Galileo references everywhere (UI now says just "0G")
+- [x] Footer: drop the Network block; chain id 16602 wired in providers,
+      `og.ts`, and `hardhat.config.cjs`
 
-## Pending — 0G Compute
-
-- [ ] Obtain `OG_ROUTER_API_KEY` and verify `/playground` chat end-to-end
-- [ ] Add streaming (SSE) responses to `/playground`
-- [ ] Add image generation (sync + async job polling) to the Router client + UI
-- [ ] Surface live Router models on `/infts` instead of demo listings
-
-## Pending — ERC-7857 contract
+## Done — ERC-7857 contract + deploy
 
 - [x] Write the ERC-7857 INFT contract — `contracts/src/AgentDeed.sol`,
       `IERC7857.sol`, `TEEOracle.sol`; Hardhat project, compiles clean
 - [x] Deploy script — `contracts/scripts/deploy.cjs` (TEEOracle + AgentDeed)
-- [ ] Deploy to 0G Galileo testnet (needs funded `DEPLOYER_PRIVATE_KEY`)
-- [ ] Set `NEXT_PUBLIC_AGENT_DEED_ADDRESS` + `NEXT_PUBLIC_TEE_ORACLE_ADDRESS`
+- [x] Wallet generator — `contracts/scripts/generate-wallet.cjs`
+      (`npm run wallet:new`) writes a fresh EOA to `contracts/.env`
+- [x] Fund the deployer (0.3 OG @ chain 16602)
+- [x] Deploy to 0G — TEEOracle `0xcF7294f6C6Ca09cae9b6832efbCffAB218e7d499`,
+      AgentDeed `0x21cBA803EdB8676D06FAf9aCAb84611C98B7A370`
+      (oracle left unwired → permissionless transfers on testnet)
+- [x] `.env.local` with `NEXT_PUBLIC_AGENT_DEED_ADDRESS` +
+      `NEXT_PUBLIC_TEE_ORACLE_ADDRESS`
 - [x] `src/lib/inft.ts` — viem client: mint, transfer, clone, authorizeUsage,
       reads (ownerOf/balanceOf/URI/hash/sealedKey), `listInfts`, mint-receipt parsing
 - [x] Wire `/builder` mint stage to a real on-chain `mint` call
-      (falls back to simulated mint when no contract/wallet)
 - [x] Wire `/my-agents` to real contract reads (`listInfts` filtered by owner)
-- [ ] Wire `/infts` to real contract reads (still demo listings)
+- [x] Wire `/infts` to real contract reads (live `listInfts`, search/filter,
+      explorer links)
+- [x] Test mint — `contracts/scripts/mint-test.cjs` (`npm run mint:test`).
+      Token id `1` minted to the deployer, totalSupply=1.
 
-## Pending — 0G Storage
-
-- [ ] Integrate the 0G Storage SDK; replace the simulated pin in `/builder`
-- [ ] Return a real root hash / URI and store it in the iNFT `encryptedURI`
-
-## Pending — TEE oracle
+## Done — TEE oracle (contract-side)
 
 - [x] Key-sealing crypto helpers in `crypto.ts` — `sealKey`/`unsealKey`,
       vault ECDH keypairs, envelope encode/decode
@@ -48,5 +48,39 @@ Tick `[x]` as items land. Keeps scope aligned across sessions.
       wired into `AgentDeed.transfer`/`clone`
 - [x] Verify TEE attestation client-side — `src/lib/tee.ts`
       (`verifyTeeAttestation` mirrors `TEEOracle.resealDigest`)
-- [ ] Register a real attested TEE signer via `TEEOracle.setSigner` once the
-      0G Compute TEE signing key is known
+
+## Pending — needs input from you
+
+- [ ] **Restart `npm run dev`** so the new `.env.local` is picked up
+      (previous restart didn't stick — no `next dev` for this project is
+      running right now). Then visit `/infts` to see iNFT #0001.
+- [ ] Provide `OG_ROUTER_API_KEY` in `.env.local` so `/playground` chat
+      hits the live 0G Compute Router (model catalog already works).
+- [ ] Optional: `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` to drop the
+      placeholder warning in the wallet modal.
+- [ ] Decide: mint from `/builder` with your *browser* wallet, or
+      keep using the deployer key via `npm run mint:test`. The first
+      path needs you to either fund a second EOA or import the deployer
+      key into MetaMask as a test account.
+- [ ] Once 0G publishes the attested TEE signer pubkey, call
+      `TEEOracle.setSigner(<signer>)` from the deployer wallet — that
+      flips transfers from permissionless to real TEE-gated.
+
+## Pending — engineering
+
+### 0G Compute
+- [ ] Add streaming (SSE) responses to `/playground`
+- [ ] Add image generation (sync + async job polling) to the Router client + UI
+- [ ] Surface live Router models on `/infts` instead of demo listings
+
+### 0G Storage
+- [ ] Integrate the 0G Storage SDK; replace the simulated pin in `/builder`
+- [ ] Return a real root hash / URI and store it in the iNFT `encryptedURI`
+      (currently `/builder` simulates and `mint-test` uses a `0g://stub/...` placeholder)
+
+### Polish
+- [ ] Per-token detail route (`/infts/[tokenId]`) with on-chain history,
+      `getSealedKey` viewer, `usagePermissions` lookups
+- [ ] Show the deployer + oracle addresses in an Admin panel for the owner
+- [ ] Replace the static `stats` block on the landing page with live
+      `totalSupply` + transfer-event counts

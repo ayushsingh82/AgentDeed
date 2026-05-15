@@ -1,151 +1,60 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useAccount } from "wagmi";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
+import { listInfts, type InftRecord } from "@/lib/inft";
+import { AGENT_DEED_CONTRACT, AGENT_DEED_DEPLOYED, OG_CHAIN } from "@/lib/og";
 
-type Listing = {
-  id: string;
-  name: string;
-  base: string;
-  domain: string;
-  rank: number;
-  sizeMb: number;
-  priceOg: number;
-  metric: { label: string; value: string };
-  status: "Sealed" | "Sold" | "Reserved";
-  seller: string;
-  trainedAt: string;
-};
-
-const LISTINGS: Listing[] = [
-  {
-    id: "0427",
-    name: "MedScribe-LoRA",
-    base: "phi-3-mini-4k",
-    domain: "medical Q&A",
-    rank: 16,
-    sizeMb: 142.6,
-    priceOg: 5.0,
-    metric: { label: "MMLU-med", value: "+11.2" },
-    status: "Sealed",
-    seller: "0xa1c4…f3",
-    trainedAt: "2 weeks ago",
-  },
-  {
-    id: "0431",
-    name: "SolidityAuditor-v2",
-    base: "llama-3-8b",
-    domain: "smart-contract review",
-    rank: 32,
-    sizeMb: 286.4,
-    priceOg: 12.5,
-    metric: { label: "SWC-coverage", value: "94%" },
-    status: "Sealed",
-    seller: "0x9b…41",
-    trainedAt: "3 days ago",
-  },
-  {
-    id: "0438",
-    name: "JP→EN-Manga-Tone",
-    base: "qwen2-7b",
-    domain: "JP→EN literary",
-    rank: 16,
-    sizeMb: 168.3,
-    priceOg: 3.2,
-    metric: { label: "BLEU", value: "+6.4" },
-    status: "Sealed",
-    seller: "0x55…ee",
-    trainedAt: "1 day ago",
-  },
-  {
-    id: "0399",
-    name: "RetailVoice-Adapter",
-    base: "mistral-7b",
-    domain: "support-call summarization",
-    rank: 8,
-    sizeMb: 76.1,
-    priceOg: 1.8,
-    metric: { label: "ROUGE-L", value: "+8.9" },
-    status: "Sold",
-    seller: "0x71…2a",
-    trainedAt: "1 month ago",
-  },
-  {
-    id: "0442",
-    name: "Sonnet-Style-LoRA",
-    base: "stable-diffusion-xl",
-    domain: "vintage-illustration",
-    rank: 32,
-    sizeMb: 211.7,
-    priceOg: 7.7,
-    metric: { label: "CLIP-sim", value: "0.81" },
-    status: "Sealed",
-    seller: "0xfa…07",
-    trainedAt: "5 days ago",
-  },
-  {
-    id: "0445",
-    name: "SQL-CoT-Adapter",
-    base: "deepseek-coder-6.7b",
-    domain: "text → SQL",
-    rank: 16,
-    sizeMb: 124.2,
-    priceOg: 4.4,
-    metric: { label: "Spider-EX", value: "78%" },
-    status: "Reserved",
-    seller: "0x12…bb",
-    trainedAt: "8 hours ago",
-  },
-  {
-    id: "0451",
-    name: "Whisper-Surgical-Notes",
-    base: "whisper-large-v3",
-    domain: "ASR medical",
-    rank: 8,
-    sizeMb: 64.8,
-    priceOg: 6.1,
-    metric: { label: "WER", value: "−32%" },
-    status: "Sealed",
-    seller: "0xdd…91",
-    trainedAt: "12 days ago",
-  },
-  {
-    id: "0454",
-    name: "Pixel-Logo-LoRA",
-    base: "flux-1-dev",
-    domain: "logo generation",
-    rank: 16,
-    sizeMb: 158.0,
-    priceOg: 2.9,
-    metric: { label: "Style-fit", value: "0.74" },
-    status: "Sealed",
-    seller: "0x4e…3c",
-    trainedAt: "yesterday",
-  },
-];
-
-const FILTERS = ["All", "Sealed", "Sold", "Reserved"] as const;
+type Filter = "All" | "Mine" | "Others";
+const FILTERS: Filter[] = ["All", "Mine", "Others"];
 
 export default function MarketplacePage() {
-  const [filter, setFilter] =
-    useState<(typeof FILTERS)[number]>("All");
+  const { address } = useAccount();
+  const [infts, setInfts] = useState<InftRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>("All");
   const [query, setQuery] = useState("");
 
+  useEffect(() => {
+    if (!AGENT_DEED_DEPLOYED) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    listInfts()
+      .then((all) => {
+        if (!cancelled) setInfts(all);
+      })
+      .catch((e) => {
+        if (!cancelled) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
-    return LISTINGS.filter((l) => {
-      if (filter !== "All" && l.status !== filter) return false;
+    const me = address?.toLowerCase();
+    return infts.filter((t) => {
+      const ownerLower = t.owner.toLowerCase();
+      if (filter === "Mine" && (!me || ownerLower !== me)) return false;
+      if (filter === "Others" && me && ownerLower === me) return false;
       if (!query.trim()) return true;
       const q = query.toLowerCase();
       return (
-        l.name.toLowerCase().includes(q) ||
-        l.base.toLowerCase().includes(q) ||
-        l.domain.toLowerCase().includes(q) ||
-        l.id.includes(q)
+        t.tokenId.toString().includes(q) ||
+        ownerLower.includes(q) ||
+        t.encryptedURI.toLowerCase().includes(q) ||
+        t.metadataHash.toLowerCase().includes(q)
       );
     });
-  }, [filter, query]);
+  }, [infts, query, filter, address]);
 
   return (
     <main className="flex min-h-screen flex-col bg-[#E2E2DA] text-[#0A0A0A]">
@@ -159,67 +68,76 @@ export default function MarketplacePage() {
                 Marketplace · /infts
               </p>
               <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
-                Sealed models for sale.
+                Sealed models on-chain.
               </h1>
               <p className="mt-3 max-w-2xl text-base text-[#0A0A0A]/75">
-                Every listing is a working capability behind a TEE-sealed key.
-                Buy → key re-encrypts to you. Seller can no longer infer.
+                Every listing is an ERC-7857 iNFT minted to the AgentDeed
+                contract. Read live on-chain.
               </p>
             </div>
-            <Stats />
+            <Stats total={infts.length} loading={loading} />
           </div>
 
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-2">
-              {FILTERS.map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`border px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.2em] transition ${
-                    filter === f
-                      ? "border-[#F64618] bg-[#F64618] text-[#E2E2DA]"
-                      : "border-[#0A0A0A] text-[#0A0A0A] hover:border-[#F64618]"
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
+          {AGENT_DEED_DEPLOYED && (
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2">
+                {FILTERS.map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`border px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.2em] transition ${
+                      filter === f
+                        ? "border-[#F64618] bg-[#F64618] text-[#E2E2DA]"
+                        : "border-[#0A0A0A] text-[#0A0A0A] hover:border-[#F64618]"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
 
-            <div className="relative w-full md:w-96">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by model, base, or token id…"
-                className="w-full border border-[#0A0A0A] bg-[#E2E2DA] px-4 py-3 pr-10 font-mono text-sm text-[#0A0A0A] placeholder:text-[#6A6A60] focus:border-[#F64618] focus:outline-none"
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-[#6A6A60]">
-                ⌘K
-              </span>
+              <div className="relative w-full md:w-96">
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search by token id, owner, or hash…"
+                  className="w-full border border-[#0A0A0A] bg-[#E2E2DA] px-4 py-3 pr-10 font-mono text-sm text-[#0A0A0A] placeholder:text-[#6A6A60] focus:border-[#F64618] focus:outline-none"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-[#6A6A60]">
+                  ⌘K
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
       <section className="px-6 py-12">
         <div className="mx-auto max-w-7xl">
-          {filtered.length === 0 ? (
+          {!AGENT_DEED_DEPLOYED ? (
+            <NotDeployed />
+          ) : error ? (
+            <div className="border border-[#F64618]/50 bg-[#F64618]/[0.06] p-10 font-mono text-sm text-[#F64618]">
+              Failed to read contract: {error}
+            </div>
+          ) : loading ? (
+            <p className="font-mono text-sm text-[#6A6A60]">
+              Reading on-chain listings…
+            </p>
+          ) : filtered.length === 0 ? (
             <div className="border border-dashed border-[#0A0A0A] p-16 text-center font-mono text-sm text-[#6A6A60]">
-              No listings match the current filter.
+              No iNFTs minted yet.{" "}
+              <Link href="/builder" className="text-[#F64618] underline">
+                Mint the first →
+              </Link>
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((l, idx) => (
+              {filtered.map((t, idx) => (
                 <ListingCard
-                  key={l.id}
-                  listing={l}
-                  variant={
-                    l.status === "Sold"
-                      ? "muted"
-                      : idx % 5 === 2
-                      ? "accent"
-                      : "ink"
-                  }
+                  key={t.tokenId.toString()}
+                  inft={t}
+                  variant={idx % 5 === 2 ? "accent" : "ink"}
                 />
               ))}
             </div>
@@ -232,12 +150,34 @@ export default function MarketplacePage() {
   );
 }
 
-function Stats() {
+function NotDeployed() {
   return (
-    <dl className="grid grid-cols-3 gap-3 font-mono text-xs">
-      <Stat label="Total listings" value="142" />
-      <Stat label="Sealed today" value="6" />
-      <Stat label="Volume · 7d" value="318 OG" />
+    <div className="mx-auto max-w-2xl border border-[#F64618]/50 bg-[#F64618]/[0.06] p-10 text-center">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-[#F64618]">
+        Contract not configured
+      </p>
+      <h2 className="mt-4 text-2xl font-black">No AgentDeed address set</h2>
+      <p className="mt-3 text-sm text-[#0A0A0A]/75">
+        Deploy the ERC-7857 contract from <code>contracts/</code> and set{" "}
+        <code className="font-mono">NEXT_PUBLIC_AGENT_DEED_ADDRESS</code> to
+        load on-chain listings.
+      </p>
+    </div>
+  );
+}
+
+function Stats({ total, loading }: { total: number; loading: boolean }) {
+  return (
+    <dl className="grid grid-cols-2 gap-3 font-mono text-xs">
+      <Stat label="Total minted" value={loading ? "…" : String(total)} />
+      <Stat
+        label="Contract"
+        value={
+          AGENT_DEED_DEPLOYED
+            ? `${AGENT_DEED_CONTRACT.slice(0, 6)}…${AGENT_DEED_CONTRACT.slice(-4)}`
+            : "—"
+        }
+      />
     </dl>
   );
 }
@@ -253,54 +193,30 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-type Variant = "ink" | "accent" | "muted";
+type Variant = "ink" | "accent";
 
-function ListingCard({
-  listing,
-  variant,
-}: {
-  listing: Listing;
-  variant: Variant;
-}) {
-  const sold = listing.status === "Sold";
-
-  const palette = (() => {
-    if (variant === "accent") {
-      return {
-        card: "bg-[#F64618] text-[#E2E2DA] border-[#0A0A0A]",
-        ink: "text-[#E2E2DA]",
-        mute: "text-[#E2E2DA]/70",
-        rule: "border-[#E2E2DA]/30",
-        statusBox:
-          "border-[#0A0A0A] bg-[#0A0A0A] text-[#E2E2DA]",
-        priceColor: "text-[#0A0A0A]",
-        accentText: "text-[#0A0A0A]",
-        cta: "border-[#0A0A0A] bg-[#0A0A0A] text-[#E2E2DA] hover:bg-[#E2E2DA] hover:text-[#0A0A0A]",
-      };
-    }
-    if (variant === "muted") {
-      return {
-        card: "bg-[#E2E2DA] text-[#0A0A0A] border-[#0A0A0A] opacity-70",
-        ink: "text-[#0A0A0A]",
-        mute: "text-[#6A6A60]",
-        rule: "border-[#0A0A0A]/40",
-        statusBox: "border-[#0A0A0A] bg-[#0A0A0A] text-[#E2E2DA]",
-        priceColor: "text-[#0A0A0A]/70",
-        accentText: "text-[#F64618]",
-        cta: "pointer-events-none border-[#0A0A0A] text-[#6A6A60]",
-      };
-    }
-    return {
-      card: "bg-[#0A0A0A] text-[#E2E2DA] border-[#0A0A0A]",
-      ink: "text-[#E2E2DA]",
-      mute: "text-[#E2E2DA]/60",
-      rule: "border-[#E2E2DA]/20",
-      statusBox: "border-[#F64618] bg-[#F64618] text-[#E2E2DA]",
-      priceColor: "text-[#F64618]",
-      accentText: "text-[#F64618]",
-      cta: "border-[#F64618] bg-[#F64618] text-[#E2E2DA] hover:bg-[#E2E2DA] hover:text-[#0A0A0A] hover:border-[#E2E2DA]",
-    };
-  })();
+function ListingCard({ inft, variant }: { inft: InftRecord; variant: Variant }) {
+  const id = inft.tokenId.toString().padStart(4, "0");
+  const palette =
+    variant === "accent"
+      ? {
+          card: "bg-[#F64618] text-[#E2E2DA] border-[#0A0A0A]",
+          ink: "text-[#E2E2DA]",
+          mute: "text-[#E2E2DA]/70",
+          rule: "border-[#E2E2DA]/30",
+          statusBox: "border-[#0A0A0A] bg-[#0A0A0A] text-[#E2E2DA]",
+          accentText: "text-[#0A0A0A]",
+          cta: "border-[#0A0A0A] bg-[#0A0A0A] text-[#E2E2DA] hover:bg-[#E2E2DA] hover:text-[#0A0A0A]",
+        }
+      : {
+          card: "bg-[#0A0A0A] text-[#E2E2DA] border-[#0A0A0A]",
+          ink: "text-[#E2E2DA]",
+          mute: "text-[#E2E2DA]/60",
+          rule: "border-[#E2E2DA]/20",
+          statusBox: "border-[#F64618] bg-[#F64618] text-[#E2E2DA]",
+          accentText: "text-[#F64618]",
+          cta: "border-[#F64618] bg-[#F64618] text-[#E2E2DA] hover:bg-[#E2E2DA] hover:text-[#0A0A0A] hover:border-[#E2E2DA]",
+        };
 
   return (
     <article
@@ -310,67 +226,58 @@ function ListingCard({
         <span
           className={`font-mono text-[10px] font-bold uppercase tracking-[0.22em] ${palette.mute}`}
         >
-          iNFT #{listing.id}
+          iNFT #{id}
         </span>
         <span
           className={`border-2 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.22em] ${palette.statusBox}`}
         >
-          {listing.status}
+          Sealed
         </span>
       </header>
 
-      <h3 className="mt-5 text-xl font-black">{listing.name}</h3>
-      <p className={`mt-1 font-mono text-[11px] ${palette.mute}`}>
-        base · <span className={palette.ink}>{listing.base}</span> · LoRA r=
-        {listing.rank}
-      </p>
+      <h3 className="mt-5 break-all text-xl font-black">AgentDeed #{id}</h3>
 
       <div
         className={`mt-5 border-t-2 pt-4 font-mono text-[11px] leading-6 ${palette.rule}`}
       >
-        <div className="flex justify-between">
-          <span className={palette.mute}>domain</span>
-          <span>{listing.domain}</span>
+        <div className="flex justify-between gap-3">
+          <span className={palette.mute}>owner</span>
+          <span>{shortAddr(inft.owner)}</span>
         </div>
-        <div className="flex justify-between">
-          <span className={palette.mute}>weights</span>
-          <span>{listing.sizeMb.toFixed(1)} MB</span>
-        </div>
-        <div className="flex justify-between">
-          <span className={palette.mute}>{listing.metric.label}</span>
-          <span className={`font-bold ${palette.accentText}`}>
-            {listing.metric.value}
+        <div className="flex justify-between gap-3">
+          <span className={palette.mute}>weights hash</span>
+          <span className="truncate">
+            {inft.metadataHash.slice(0, 10)}…{inft.metadataHash.slice(-6)}
           </span>
         </div>
-        <div className="flex justify-between">
-          <span className={palette.mute}>seller</span>
-          <span>{listing.seller}</span>
+        <div className="flex justify-between gap-3">
+          <span className={palette.mute}>storage uri</span>
+          <span className="truncate">{inft.encryptedURI || "—"}</span>
         </div>
       </div>
 
       <footer
         className={`mt-6 flex items-end justify-between border-t-2 pt-5 ${palette.rule}`}
       >
-        <div>
-          <p
-            className={`font-mono text-[9px] font-bold uppercase tracking-[0.24em] ${palette.mute}`}
-          >
-            Price
-          </p>
-          <p
-            className={`mt-1 font-mono text-2xl font-black ${palette.priceColor}`}
-          >
-            {listing.priceOg.toFixed(2)} <span className="text-sm">OG</span>
-          </p>
-        </div>
+        <a
+          href={`${OG_CHAIN.explorer}/token/${AGENT_DEED_CONTRACT}?tokenId=${inft.tokenId}`}
+          target="_blank"
+          rel="noreferrer"
+          className={`font-mono text-[10px] font-bold uppercase tracking-[0.24em] underline ${palette.accentText}`}
+        >
+          View on explorer →
+        </a>
         <Link
-          href={sold ? "#" : "/builder"}
-          aria-disabled={sold}
+          href="/builder"
           className={`inline-flex items-center gap-2 border-2 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] transition ${palette.cta}`}
         >
-          {sold ? "Sold" : "Unseal →"}
+          Unseal →
         </Link>
       </footer>
     </article>
   );
+}
+
+function shortAddr(a: string) {
+  return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
