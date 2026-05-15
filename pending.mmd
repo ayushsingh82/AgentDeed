@@ -74,9 +74,14 @@ Tick `[x]` as items land. Keeps scope aligned across sessions.
 - [ ] Surface live Router models on `/infts` instead of demo listings
 
 ### 0G Storage
-- [ ] Integrate the 0G Storage SDK; replace the simulated pin in `/builder`
-- [ ] Return a real root hash / URI and store it in the iNFT `encryptedURI`
-      (currently `/builder` simulates and `mint-test` uses a `0g://stub/...` placeholder)
+- [x] Integrate `@0gfoundation/0g-storage-ts-sdk` — `src/lib/storage.ts`
+      + `/api/storage/pin` route (server-side, signed by deployer key)
+- [x] Real root hash returned and stored as iNFT `encryptedURI` (smoke
+      test: 32 KB ciphertext pinned, returned `0x4c5de…7e31` + tx
+      `0x8f95b…2371` at seq 111671)
+- [ ] Let the connected browser wallet pay for the pin instead of the
+      shared deployer key (browser-side ethers signer; adds wallet popup)
+- [ ] Surface the pin tx hash on `/infts` cards alongside the storage URI
 
 ### Polish
 - [ ] Per-token detail route (`/infts/[tokenId]`) with on-chain history,

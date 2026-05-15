@@ -14,10 +14,12 @@ const SLIDES = [
   { id: "02", title: "Problem" },
   { id: "03", title: "Solution" },
   { id: "04", title: "How it works" },
-  { id: "05", title: "Why now" },
-  { id: "06", title: "Business model" },
-  { id: "07", title: "Traction" },
-  { id: "08", title: "Closing" },
+  { id: "05", title: "Sealed-key transfer" },
+  { id: "06", title: "Architecture" },
+  { id: "07", title: "Why now" },
+  { id: "08", title: "Business model" },
+  { id: "09", title: "Traction" },
+  { id: "10", title: "Closing" },
 ] as const;
 
 export default function PitchPage() {
@@ -110,25 +112,39 @@ export default function PitchPage() {
           register={(el) => (slideRefs.current[4] = el)}
           bg="ink"
         >
-          <WhyNow />
+          <SealedTransfer />
         </Slide>
         <Slide
           idx={5}
           register={(el) => (slideRefs.current[5] = el)}
           bg="bone"
         >
-          <BusinessModel />
+          <Architecture />
         </Slide>
         <Slide
           idx={6}
           register={(el) => (slideRefs.current[6] = el)}
           bg="orange"
         >
-          <Traction />
+          <WhyNow />
         </Slide>
         <Slide
           idx={7}
           register={(el) => (slideRefs.current[7] = el)}
+          bg="bone"
+        >
+          <BusinessModel />
+        </Slide>
+        <Slide
+          idx={8}
+          register={(el) => (slideRefs.current[8] = el)}
+          bg="orange"
+        >
+          <Traction />
+        </Slide>
+        <Slide
+          idx={9}
+          register={(el) => (slideRefs.current[9] = el)}
           bg="ink"
         >
           <Closing />
@@ -493,6 +509,275 @@ function StepCell({
   );
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// 05 · Sealed-key transfer (the deep dive)
+// ────────────────────────────────────────────────────────────────────────
+function SealedTransfer() {
+  return (
+    <div>
+      <Kicker num="05" title="Sealed-key transfer" tone="bone" />
+      <h2 className="mt-6 text-5xl font-black uppercase leading-[0.94] tracking-tight sm:text-6xl">
+        You sell <span className="text-[#F64618]">keys</span>, not bytes.
+      </h2>
+      <p className="mt-6 max-w-3xl text-base leading-7 text-[#E2E2DA]/85">
+        The encrypted weights live in public storage forever — anyone can pull
+        the ciphertext. The AES key that decrypts them only exists{" "}
+        <em>inside a TEE</em>, sealed to one owner at a time. Transfer rotates
+        the seal; revocation is automatic.
+      </p>
+
+      <div className="mt-10 grid gap-0 border-2 border-[#E2E2DA] md:grid-cols-3">
+        <TransferState
+          tag="Before"
+          envelope="sealedKey₍seller₎"
+          ownerOf="seller"
+          decrypts={["✓ seller (via TEE)"]}
+          cantDecrypt={["✗ everyone else"]}
+        />
+        <TransferState
+          tag="At transfer"
+          envelope="TEE: decrypt → re-encrypt"
+          ownerOf="pending"
+          decrypts={["enclave only, briefly"]}
+          cantDecrypt={["seller wallet, buyer wallet"]}
+          accent
+        />
+        <TransferState
+          tag="After"
+          envelope="sealedKey₍buyer₎"
+          ownerOf="buyer"
+          decrypts={["✓ buyer (via TEE)"]}
+          cantDecrypt={["✗ seller (envelope rotated)", "✗ everyone else"]}
+        />
+      </div>
+
+      <div className="mt-8 grid gap-4 md:grid-cols-3">
+        <Why
+          k="Why the seller can't keep using it"
+          v="They never had the key outside the TEE in the first place. After re-seal, the only envelope on-chain is the buyer's."
+        />
+        <Why
+          k="Why we don't trust the seller"
+          v="The contract verifies a TEE attestation signed by an attested signer key. No attestation, no transfer."
+          accent
+        />
+        <Why
+          k="Why it's atomic"
+          v="Ownership flip, envelope rotation, and payment all happen in one transaction. Either all of it lands, or none."
+        />
+      </div>
+    </div>
+  );
+}
+
+function TransferState({
+  tag,
+  envelope,
+  ownerOf,
+  decrypts,
+  cantDecrypt,
+  accent,
+}: {
+  tag: string;
+  envelope: string;
+  ownerOf: string;
+  decrypts: string[];
+  cantDecrypt: string[];
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={`flex flex-col gap-3 border-b-2 border-[#E2E2DA] p-6 last:border-b-0 md:border-b-0 md:border-r-2 md:last:border-r-0 ${
+        accent
+          ? "bg-[#F64618] text-[#E2E2DA]"
+          : "bg-[#0A0A0A] text-[#E2E2DA]"
+      }`}
+    >
+      <p
+        className={`font-mono text-[10px] font-bold uppercase tracking-[0.28em] ${
+          accent ? "text-[#0A0A0A]" : "text-[#F64618]"
+        }`}
+      >
+        {tag}
+      </p>
+      <p className="break-all font-mono text-base font-black">{envelope}</p>
+      <p
+        className={`font-mono text-[10px] uppercase tracking-[0.24em] ${
+          accent ? "text-[#E2E2DA]/80" : "text-[#E2E2DA]/70"
+        }`}
+      >
+        ownerOf → {ownerOf}
+      </p>
+      <div className="mt-2 space-y-1 font-mono text-xs leading-5">
+        {decrypts.map((d) => (
+          <p key={d}>{d}</p>
+        ))}
+        {cantDecrypt.map((d) => (
+          <p
+            key={d}
+            className={accent ? "text-[#0A0A0A]" : "text-[#E2E2DA]/60"}
+          >
+            {d}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Why({
+  k,
+  v,
+  accent,
+}: {
+  k: string;
+  v: string;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={`border-2 p-5 ${
+        accent
+          ? "border-[#F64618] bg-[#F64618] text-[#E2E2DA]"
+          : "border-[#E2E2DA]/30 bg-[#E2E2DA]/[0.04] text-[#E2E2DA]"
+      }`}
+    >
+      <p
+        className={`font-mono text-[10px] font-bold uppercase tracking-[0.26em] ${
+          accent ? "text-[#0A0A0A]" : "text-[#F64618]"
+        }`}
+      >
+        {k}
+      </p>
+      <p
+        className={`mt-2 text-sm leading-6 ${
+          accent ? "text-[#E2E2DA]" : "text-[#E2E2DA]/85"
+        }`}
+      >
+        {v}
+      </p>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// 06 · Architecture (tech stack)
+// ────────────────────────────────────────────────────────────────────────
+function Architecture() {
+  return (
+    <div>
+      <Kicker num="06" title="Architecture" />
+      <h2 className="mt-6 text-5xl font-black uppercase leading-[0.94] tracking-tight sm:text-6xl">
+        One trust domain.
+        <br />
+        <span className="text-[#F64618]">Four</span> layers.
+      </h2>
+      <p className="mt-6 max-w-3xl text-base leading-7 text-[#0A0A0A]/80">
+        Storage, settlement, compute, and app all settle to the same proof
+        system. No cross-chain bridges, no off-chain receipts to trust.
+      </p>
+
+      <div className="mt-10 border-2 border-[#0A0A0A]">
+        <ArchRow
+          tier="L4 · App"
+          tech="Next.js 16 · React 19 · TypeScript · Tailwind v4"
+          role="UI · /builder · /infts · /my-agents · /playground · /pitch"
+        />
+        <ArchRow
+          tier="L3 · Wallet / RPC"
+          tech="wagmi 2 · viem · RainbowKit"
+          role="Wallet connection · contract reads (parallel, no multicall3) · signed writes"
+          accent
+        />
+        <ArchRow
+          tier="L2 · Compute"
+          tech="0G Compute Router · TEE-attested providers · Ollama (local fallback)"
+          role="Inference layer · OpenAI-compatible · billing trace returned with every response"
+        />
+        <ArchRow
+          tier="L1 · Settlement"
+          tech="ERC-7857 (AgentDeed) · TEEOracle · chain 16602"
+          role="Ownership · sealed-key envelopes · TEE attestation verification"
+          accent
+        />
+        <ArchRow
+          tier="L0 · Storage"
+          tech="0G Storage · content-addressed · 3× replicas · AES-256-GCM"
+          role="Encrypted weights blob · indexed by root hash · same trust domain as the chain"
+        />
+      </div>
+
+      <div className="mt-8 grid gap-4 md:grid-cols-4">
+        <TechChip
+          name="ERC-7857"
+          detail="Sealed-key envelope token. transfer / clone / authorizeUsage."
+        />
+        <TechChip
+          name="AES-256-GCM"
+          detail="WebCrypto, 96-bit nonce. Symmetric key sealed to the TEE."
+        />
+        <TechChip
+          name="secp256k1 ECDH"
+          detail="Buyer pubkey + TEE pubkey derive the new envelope on transfer."
+        />
+        <TechChip
+          name="Hardhat + viem"
+          detail="Contracts in Solidity 0.8.24; off-chain in pure TS — no ethers."
+        />
+      </div>
+    </div>
+  );
+}
+
+function ArchRow({
+  tier,
+  tech,
+  role,
+  accent,
+}: {
+  tier: string;
+  tech: string;
+  role: string;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={`grid grid-cols-12 items-center border-b-2 border-[#0A0A0A] last:border-b-0 ${
+        accent ? "bg-[#F64618] text-[#E2E2DA]" : "bg-[#E2E2DA] text-[#0A0A0A]"
+      }`}
+    >
+      <p
+        className={`col-span-3 border-r-2 border-[#0A0A0A] px-5 py-4 font-mono text-[11px] font-bold uppercase tracking-[0.28em] ${
+          accent ? "text-[#0A0A0A]" : "text-[#F64618]"
+        }`}
+      >
+        {tier}
+      </p>
+      <div className="col-span-9 px-5 py-4">
+        <p className="font-mono text-sm font-black">{tech}</p>
+        <p
+          className={`mt-1 font-mono text-[11px] leading-5 ${
+            accent ? "text-[#E2E2DA]/90" : "text-[#0A0A0A]/75"
+          }`}
+        >
+          {role}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function TechChip({ name, detail }: { name: string; detail: string }) {
+  return (
+    <div className="border-2 border-[#0A0A0A] bg-[#0A0A0A] p-4 text-[#E2E2DA]">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-[#F64618]">
+        {name}
+      </p>
+      <p className="mt-2 text-xs leading-5 text-[#E2E2DA]/85">{detail}</p>
+    </div>
+  );
+}
+
 function Spec({ label, value }: { label: string; value: string }) {
   return (
     <div className="border border-[#0A0A0A] bg-[#E2E2DA] px-5 py-4">
@@ -511,7 +796,7 @@ function WhyNow() {
   return (
     <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
       <div className="lg:col-span-6">
-        <Kicker num="05" title="Why now" tone="bone" />
+        <Kicker num="07" title="Why now" tone="bone" />
         <h2 className="mt-6 text-5xl font-black uppercase leading-[0.94] tracking-tight sm:text-7xl">
           The model
           <br />
@@ -585,7 +870,7 @@ function Wave({
 function BusinessModel() {
   return (
     <div>
-      <Kicker num="06" title="Business model" />
+      <Kicker num="08" title="Business model" />
       <h2 className="mt-6 text-5xl font-black uppercase leading-[0.94] tracking-tight sm:text-6xl">
         Three revenue lines.
         <br />
@@ -693,7 +978,7 @@ function Traction() {
   return (
     <div>
       <p className="font-mono text-[10px] font-bold uppercase tracking-[0.32em] text-[#0A0A0A]/80">
-        §07 · <span className="text-[#0A0A0A]">Traction</span>
+        §09 · <span className="text-[#0A0A0A]">Traction</span>
       </p>
       <h2 className="mt-6 text-5xl font-black uppercase leading-[0.94] tracking-tight sm:text-7xl">
         <span className="text-[#0A0A0A]">Live</span> today.
@@ -802,7 +1087,7 @@ function Closing() {
   return (
     <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
       <div className="lg:col-span-8">
-        <Kicker num="08" title="What's next" tone="bone" />
+        <Kicker num="10" title="What's next" tone="bone" />
         <h2 className="mt-8 text-6xl font-black uppercase leading-[0.9] tracking-tight sm:text-[10vw] lg:text-[7.5vw]">
           Mint a model.
           <br />

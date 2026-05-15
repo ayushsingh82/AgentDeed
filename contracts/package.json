@@ -9,7 +9,8 @@
     "wallet:new": "node scripts/generate-wallet.cjs",
     "deploy": "hardhat run scripts/deploy.cjs --network ogGalileo",
     "deploy:local": "hardhat run scripts/deploy.cjs",
-    "mint:test": "hardhat run scripts/mint-test.cjs --network ogGalileo"
+    "mint:test": "hardhat run scripts/mint-test.cjs --network ogGalileo",
+    "transfer": "hardhat run scripts/transfer.cjs --network ogGalileo"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.8",

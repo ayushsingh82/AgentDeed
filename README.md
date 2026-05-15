@@ -88,41 +88,101 @@ The `/builder` route walks a checkpoint through a real four-stage flow:
 2. **Encrypt** — `src/lib/crypto.ts` runs **AES-256-GCM via WebCrypto** on
    the bytes, with a fresh 256-bit key and 96-bit nonce. SHA-256 of the
    ciphertext is computed for the content address.
-3. **Pin to 0G Storage** — the ciphertext is shipped to the 0G Storage
-   indexer (`NEXT_PUBLIC_OG_INDEXER_URL`) and a root hash / CID is returned.
-4. **Mint** — `AgentDeed` ERC-7857 contract is called with
-   `(to, encryptedURI, metadataHash, sealedKey)`. The sealed-key envelope
-   is what the TEE later unwraps for the current holder.
+3. **Pin to 0G Storage** — the ciphertext is `POST`ed to `/api/storage/pin`,
+   which uses `@0gfoundation/0g-storage-ts-sdk` (signed with the deployer
+   key, server-side) to submit a real upload tx. A genuine
+   `0g://<rootHash>` URI comes back.
+4. **Mint** — `AgentDeed.mint(to, encryptedURI, metadataHash)` is signed
+   by the connected wallet and submitted to chain 16602. The mint receipt
+   carries the new `tokenId`.
 
 The stage indicator, progress bars, and live build log on the right column
 all reflect actual work — the SHA-256 you see logged is the hash of *your*
 file's ciphertext.
 
-## Project layout
+## Architecture
 
-`app/` holds routes only; shared components live in `src/components/`,
-framework-agnostic logic in `src/lib/`.
+One trust domain, four layers. Storage, settlement, and inference all
+settle to the same chain — no cross-chain bridges, no off-chain receipts
+to trust.
 
 ```
-src/
-├── app/                       ← routes only
-│   ├── layout.tsx             ← root layout + providers
-│   ├── providers.tsx          ← wagmi + RainbowKit on 0G Galileo
-│   ├── globals.css            ← bone palette, grain, marquee keyframes
-│   ├── page.tsx               ← landing page
-│   ├── infts/page.tsx         ← marketplace
-│   ├── my-agents/page.tsx     ← owner vault (wallet-gated)
-│   ├── builder/page.tsx       ← upload → encrypt → mint pipeline
-│   ├── playground/page.tsx    ← live 0G Compute Router inference
-│   └── api/inference/route.ts ← server-side Router proxy
-├── components/
-│   ├── NavBar.tsx
-│   ├── Footer.tsx
-│   └── AgentDeedLogo.tsx
-└── lib/
-    ├── crypto.ts              ← WebCrypto AES-256-GCM helpers
-    ├── og.ts                  ← 0G chain / storage / compute / router constants + ERC-7857 ABI
-    └── router.ts              ← 0G Compute Router client (models, providers, chat)
+┌───────────────────────────────────────────────────────────────────┐
+│ L4 · App                                                          │
+│   Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4   │
+│   Pages: / · /infts · /my-agents · /builder · /playground · /pitch│
+└─────────────────────────────┬─────────────────────────────────────┘
+                              │
+┌─────────────────────────────┴─────────────────────────────────────┐
+│ L3 · Wallet & RPC                                                 │
+│   wagmi 2 · viem · RainbowKit                                     │
+│   Parallel contract reads (no Multicall3) · signed writes         │
+└─────────────────────────────┬─────────────────────────────────────┘
+                              │
+              ┌───────────────┼────────────────┐
+              ▼               ▼                ▼
+┌────────────────────┐ ┌──────────────┐ ┌──────────────────────────┐
+│ L2 · Compute       │ │ L1 · Chain   │ │ L0 · Storage             │
+│ 0G Compute Router  │ │ AgentDeed    │ │ 0G Storage               │
+│ TEE-attested       │ │  (ERC-7857)  │ │ content-addressed        │
+│ providers          │ │ TEEOracle    │ │ 3× replicas              │
+│ Ollama fallback    │ │ chain 16602  │ │ AES-256-GCM ciphertext   │
+│ (local dev)        │ │              │ │                          │
+└────────────────────┘ └──────────────┘ └──────────────────────────┘
+```
+
+### Request flow — what happens on a mint
+
+```
+Browser                Next.js /api          0G Storage          AgentDeed
+   │                       │                      │                   │
+   ├─ select file ─────────┤                      │                   │
+   ├─ AES-256-GCM encrypt ─┤  (WebCrypto, in-browser, raw bytes stay here)
+   │   → ciphertext + key  │                      │                   │
+   │                       │                      │                   │
+   ├─ POST /api/storage/pin┤                      │                   │
+   │   (ciphertext bytes)  │                      │                   │
+   │                       ├─ Indexer.upload ────▶│                   │
+   │                       │   (signed by         │ rootHash returned │
+   │                       │    deployer key)     │                   │
+   │                       │◀─ rootHash, txHash ──┤                   │
+   │◀─ { uri, rootHash } ──┤                      │                   │
+   │                       │                      │                   │
+   ├─ wallet.writeContract ────────────────────────────────────────▶  │
+   │   AgentDeed.mint(to, "0g://<rootHash>", sha256(ciphertext))      │
+   │                                                                  │
+   │◀─ tx hash · tokenId ─────────────────────────────────────────────┤
+   │                       │                      │                   │
+   │  Token now references the encrypted blob by content hash.        │
+   │  Only the AES key (sealed in the envelope) can decrypt it.       │
+```
+
+### Key design decisions
+
+| Decision                                  | Why                                                                                  |
+| ----------------------------------------- | ------------------------------------------------------------------------------------ |
+| Encrypt in the browser, never server-side | Raw weights never touch a network we don't control. WebCrypto is a hard requirement. |
+| Server-side storage pin                   | The 0G Storage SDK signs an on-chain submission tx. Browser can't safely hold a key. |
+| Parallel `eth_call` instead of Multicall3 | 0G doesn't register Multicall3 with viem. Three parallel reads batch on the RPC.     |
+| Ollama as a `/playground` fallback        | Lets the inference layer be exercised end-to-end without a router key.               |
+| Oracle deployed but unwired               | Permissionless transfers on testnet → faster demo iteration; oracle wiring is a `setSigner` call away. |
+
+### Repository
+
+```
+.                       
+├── src/app/            ← Next.js routes (UI + API)
+├── src/components/     ← NavBar, Footer, brand mark
+├── src/lib/            ← Framework-agnostic clients
+│   ├── crypto.ts       ← WebCrypto AES-256-GCM
+│   ├── inft.ts         ← viem client for AgentDeed
+│   ├── ollama.ts       ← Local inference fallback
+│   ├── router.ts       ← 0G Compute Router client
+│   └── storage.ts      ← Server-side 0G Storage pin
+├── contracts/          ← Hardhat project (Solidity 0.8.24)
+│   ├── src/            ← AgentDeed.sol · IERC7857.sol · TEEOracle.sol
+│   └── scripts/        ← deploy · wallet:new · mint:test · transfer
+└── pending.mmd         ← Cross-session task tracker
 ```
 
 ## Deployed contracts
@@ -166,6 +226,32 @@ read server-side by `/api/inference` and never reaches the browser. Without
 it, `/playground` still loads the live model catalog but chat calls return a
 clear "not configured" error.
 
+### Local inference with Ollama (no router key needed)
+
+`/playground` has a built-in fallback that routes to a local **Ollama**
+instance instead of the 0G Compute Router. Useful when you don't have a
+router API key or want to demo offline.
+
+```bash
+brew install ollama          # macOS; ollama.com has Linux + Windows builds
+ollama pull qwen2:0.5b       # ~350 MB · fits in 8 GB RAM. or phi3, llama3, etc.
+ollama serve                 # listens on localhost:11434
+```
+
+Then in `.env.local`:
+
+```bash
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+Restart `npm run dev`. `/playground` now shows a **"Provider · Self-hosted
+Ollama · localhost"** banner, the model picker lists whatever you've pulled,
+and chat responses come from your laptop. Wire format is OpenAI-compatible
+— same code path as the 0G Router, the request body is identical.
+
+The `x_0g_trace` in the response is synthesized (zero cost, `tee_verified:
+false`) so the UI's billing trace block stays honest about the source.
+
 ### Deploy your own copy
 
 ```bash
@@ -199,7 +285,9 @@ exclusivity rather than honor-system licensing.
   simulated-mint fallback for unconfigured environments)
 - ✅ Live 0G Compute Router inference — `/playground` calls real TEE-attested
   providers through the `/api/inference` proxy, with on-chain billing traces
-- ⏳ Live 0G Storage upload — currently simulated; SDK wiring is the next milestone
+- ✅ Live 0G Storage upload — `/builder` ciphertext is pinned through
+  `@0gfoundation/0g-storage-ts-sdk` via the server-side `/api/storage/pin`
+  route; the iNFT records a real `0g://<rootHash>` URI
 - ⏳ TEE re-encryption on transfer — contract path ready; awaits an attested
   TEE signer registered via `TEEOracle.setSigner`
 

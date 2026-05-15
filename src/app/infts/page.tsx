@@ -240,20 +240,17 @@ function ListingCard({ inft, variant }: { inft: InftRecord; variant: Variant }) 
       <div
         className={`mt-5 border-t-2 pt-4 font-mono text-[11px] leading-6 ${palette.rule}`}
       >
-        <div className="flex justify-between gap-3">
-          <span className={palette.mute}>owner</span>
-          <span>{shortAddr(inft.owner)}</span>
-        </div>
-        <div className="flex justify-between gap-3">
-          <span className={palette.mute}>weights hash</span>
-          <span className="truncate">
-            {inft.metadataHash.slice(0, 10)}…{inft.metadataHash.slice(-6)}
-          </span>
-        </div>
-        <div className="flex justify-between gap-3">
-          <span className={palette.mute}>storage uri</span>
-          <span className="truncate">{inft.encryptedURI || "—"}</span>
-        </div>
+        <Row k="owner" v={shortAddr(inft.owner)} muteClass={palette.mute} />
+        <Row
+          k="weights hash"
+          v={`${inft.metadataHash.slice(0, 10)}…${inft.metadataHash.slice(-6)}`}
+          muteClass={palette.mute}
+        />
+        <Row
+          k="storage uri"
+          v={inft.encryptedURI || "—"}
+          muteClass={palette.mute}
+        />
       </div>
 
       <footer
@@ -275,6 +272,23 @@ function ListingCard({ inft, variant }: { inft: InftRecord; variant: Variant }) 
         </Link>
       </footer>
     </article>
+  );
+}
+
+function Row({
+  k,
+  v,
+  muteClass,
+}: {
+  k: string;
+  v: string;
+  muteClass: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className={muteClass}>{k}</span>
+      <span className="truncate">{v}</span>
+    </div>
   );
 }
 

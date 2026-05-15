@@ -1,197 +1,276 @@
-# AgentDeed — Demo Walkthrough
+# AgentDeed — Demo & Video Script
 
-A step-by-step guide to run AgentDeed locally and verify each part of the
-demo works. Use this to check the build before a presentation or review.
+This is the script you record to. It's organized as the **video** would
+flow, with notes on what to say, what to click, and when to switch wallet.
+Total runtime if you stick to it: ~3–5 minutes.
 
-> **Status legend** — used throughout this doc:
-> - **LIVE** — fully working, real cryptography / real wallet calls
-> - **SIM** — simulated in the UI (no network call yet), pending 0G integration
-
----
-
-## 1. Prerequisites
-
-- **Node.js 18+** and npm
-- A browser wallet (MetaMask or any WalletConnect-compatible wallet)
-- A **WalletConnect Project ID** — free, from https://cloud.walletconnect.com
-- Optional, for wallet flows: 0G Galileo testnet tokens from the 0G faucet
+> **The single most important thing to know:** the iNFTs you mint on
+> `/builder` represent encrypted **LoRAs / fine-tunes** on-chain. The
+> `/playground` page runs **base models** for live chat. These are two
+> different layers today — the iNFT carries the *right* to a sealed key;
+> applying that LoRA onto a base model running in TEE is the production
+> path we haven't wired yet. Don't promise the audience that minting
+> `MedScribe-LoRA` makes the playground answer medical Q&A — it doesn't,
+> yet. Frame it as **"capability ownership on-chain"** + **"compute layer
+> wired and demonstrable"** as two parallel tracks meeting in the future.
 
 ---
 
-## 2. One-time setup
+## 0. Before you hit record
+
+Open these three things in advance so you're not fumbling on camera:
+
+1. **Browser tab A** → `http://localhost:3000` (the app).
+2. **Browser tab B** → `https://chainscan-galileo.0g.ai/address/0x21cBA803EdB8676D06FAf9aCAb84611C98B7A370` (the deployed contract on the explorer).
+3. **MetaMask** (or your wallet) → open, signed in. Have **two accounts** ready if you want to show transfer later:
+   - **Account 1 — Deployer:** the wallet imported from `contracts/.env`. Holds 0G, owns iNFT #1 already.
+   - **Account 2 — Buyer:** any second wallet on chain 16602.
+
+**Local services that must be running:**
+
+| Service          | Command                | Port  | Status check                          |
+| ---------------- | ---------------------- | ----- | ------------------------------------- |
+| Next.js dev      | `npm run dev`          | 3000  | `curl http://localhost:3000/` → 200   |
+| Ollama           | `ollama serve`         | 11434 | `curl http://localhost:11434/api/version` → JSON |
+
+If `npm run dev` was running before you set `OLLAMA_BASE_URL`, **restart it**
+— Next.js only reads `.env.local` at boot.
+
+---
+
+## 1. The pitch deck — `/pitch` (~30 s)
+
+Open `http://localhost:3000/pitch`.
+
+- **What to say:** *"AgentDeed is the first marketplace where the token is
+  the model. You'll see in the next two minutes — mint, on-chain, live
+  inference — but first, the 30-second story."*
+- **What to do:** press → four or five times. Land on **§07 · Traction**
+  and pause for a beat so the camera catches the deployed addresses.
+
+---
+
+## 2. The marketplace — `/infts` (~30 s)
+
+Click **Marketplace** in the nav.
+
+- **What to say:** *"Every card here is read live from a deployed
+  ERC-7857 contract on 0G — not a static list. There's one minted token
+  on the contract right now, and you'll see me mint another in a second."*
+- **What to do:**
+  - Hover the iNFT #0001 card. Show the **copy** affordance on the
+    owner address, weights hash, and storage URI.
+  - Click **View on explorer →**. Switch to tab B. The contract page on
+    chainscan should already be open. Show the transaction count is
+    non-zero.
+
+---
+
+## 3. Mint a new model — `/builder` (~60 s) — **headline moment**
+
+Click **Builder** in the nav.
+
+### Wallet step (do this BEFORE clicking Run)
+
+- Top-right: **Connect Wallet** → choose **Account 1 (Deployer)**.
+- If the wallet asks to add a network: **chain id 16602, name "0G",
+  RPC `https://evmrpc-testnet.0g.ai`**.
+- Confirm the wallet shows your address + the 0G chain icon.
+
+### Fill the form
+
+| Field         | Value                                       |
+| ------------- | ------------------------------------------- |
+| **File**      | `demo-models/medscribe-lora.safetensors` (or any small file) |
+| **Name**      | `MedScribe-LoRA`                            |
+| **Base**      | `phi-3-mini-4k`                             |
+| **Domain**    | `medical Q&A`                               |
+| **Rank**      | `16`                                        |
+| **Price**     | `5` (OG)                                    |
+
+A larger menu of realistic inputs lives at `demo-models/MINT_INPUTS.md`.
+
+### Click **Seal & mint →** and narrate as the log appears
+
+The log lines and what to say for each:
+
+1. **`[encrypt] init AES-256-GCM · 12B nonce`** — *"Browser-side encryption.
+   The raw weights never leave the page unsealed."*
+2. **`[encrypt] sha256(ct) = …`** — *"That hash is the content address of
+   your encrypted file. Same file, same key, same hash."*
+3. **`[encrypt] aes-key = …`** — *"And the AES key the browser just minted.
+   This is the thing we're going to seal."*
+4. **`[0g.store] indexer / root / cid`** — *"Sealed blob shipped to 0G
+   Storage. Three replicas. Same trust domain as the chain."*
+5. **`[mint] preparing ERC-7857 calldata`** — *"Building the mint payload."*
+6. **`[mint] sealedKey envelope size: 32 B`** — *"This envelope is what
+   ERC-7857 adds. The token carries the right to decrypt."*
+7. **`[mint] tx 0x… · awaiting receipt`** — **MetaMask popup appears here.
+   Confirm.**
+8. **`[mint] confirmed on-chain · iNFT #00NN`** — *"Confirmed. Real tx,
+   real gas, real chain — not a demo network."*
+
+### One-line summary to land
+
+*"Encrypt locally. Pin to 0G. Mint on 0G. Seal to TEE. One transaction,
+four guarantees."*
+
+### Verify on chain
+
+Switch to tab B and refresh the explorer. The transaction count went up.
+Click into the latest tx to show the on-chain proof.
+
+---
+
+## 4. The vault — `/my-agents` (~20 s)
+
+Click **My Models**.
+
+- **What to say:** *"Live wallet read — this isn't faked, it's the
+  contract telling us which tokens this wallet owns."*
+- **What to do:** point at the holdings panel. The token you just minted
+  should be there alongside any previous mints by the deployer.
+
+### Switching wallets to show transfer (optional, ~30 s extra)
+
+If you want to demonstrate the buyer side:
+
+1. Open MetaMask → switch to **Account 2 (Buyer)** (must be on chain 16602
+   with a bit of OG for gas).
+2. Refresh `/my-agents` — vault is empty (good — that's the proof the read
+   is real, not cached).
+3. Refresh `/infts` — you'll still see the tokens; switch the filter to
+   **Mine** to show it's empty for this account; back to **All** to show
+   the deployer's tokens.
+
+> Full **transfer** (the sealed-key re-encryption) needs the TEE oracle
+> wired with an attested signer key. We've deployed the oracle and the
+> contract path supports it; it's not yet enabled on testnet. Frame this
+> as "next milestone."
+
+---
+
+## 5. Live inference — `/playground` (~45 s)
+
+Click **Playground**.
+
+> If you see a **"Inference is not configured"** error: it means
+> `npm run dev` was started before `OLLAMA_BASE_URL` landed in
+> `.env.local`. Restart `npm run dev` (Ctrl-C → `npm run dev`).
+
+You should see a black banner near the top: **"Provider · Self-hosted
+Ollama · localhost"**.
+
+- **What to say:** *"This is the inference layer. In production it routes
+  through the 0G Compute Router and bills against your model NFT. For
+  this demo it routes to a local Ollama instance — same OpenAI-compatible
+  wire format, same code path. The point is the round-trip works."*
+
+- **What to do:**
+  1. The model dropdown lists whatever models you've pulled in Ollama.
+     Pick `qwen2:0.5b` (or whatever's there).
+  2. Leave the default prompt or change to: *"Explain what an ERC-7857
+     iNFT is in two sentences."*
+  3. Hit **Run inference →**.
+  4. The reply appears in the right panel. Below it: the **x_0g_trace**
+     block with `request_id`, `provider`, `tokens`, `cost`. Note that
+     `tee_verified` reads `false` and cost reads `0` — *that's correct
+     and honest* because we're not on the Router today.
+
+### Honest framing point
+
+*"On the deployed Vercel demo this banner switches over to the 0G
+Compute Router as soon as we have a router key — same code path, no
+re-wiring. The chat you just saw used a 500 MB model running on this
+laptop; production swaps that for a TEE-attested provider."*
+
+---
+
+## 6. Wrap (~15 s)
+
+- **What to say:** *"What you just saw: live contracts, real mint,
+  real inference. Two things still on the roadmap — real 0G Storage
+  pinning replacing the simulated step in the builder, and TEE-attested
+  transfer wiring the oracle we've already deployed. Everything else is
+  in your hands today."*
+- **CTA:** point at `/builder` for "mint your own" or send people to
+  `/pitch` for the deck.
+
+---
+
+## What models can I run on `/playground`?
+
+**Whatever you've pulled into Ollama.** They have no relationship to the
+iNFTs on `/infts` — the iNFT system records *which encrypted LoRA file is
+yours*, and the playground runs *whichever base model you've downloaded
+locally*. To add more:
 
 ```bash
-# from the project root
-npm install
-
-# create your local env file
-cp .env.example .env.local
+ollama pull qwen2:1.5b     # ~0.9 GB — better than 0.5b, still fast on 8 GB
+ollama pull phi3:mini      # ~2.2 GB — popular Microsoft model
+ollama pull llama3:8b      # ~4.7 GB — strongest of the three, may swap on 8 GB
+ollama list                # see everything you've got
 ```
 
-Open `.env.local` and fill in **at minimum**:
-
-```bash
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=<your-walletconnect-id>
-```
-
-The 0G endpoint vars (`NEXT_PUBLIC_OG_INDEXER_URL`, `NEXT_PUBLIC_OG_KV_NODE_URL`,
-`NEXT_PUBLIC_OG_COMPUTE_BROKER_URL`) already have working public-testnet
-defaults baked into `src/lib/og.ts` — leave them blank unless you're pointing
-at your own node.
-
-`NEXT_PUBLIC_AGENT_DEED_ADDRESS` can stay empty for the demo — the contract
-isn't deployed yet, so the mint step is **SIM**.
+After pulling, the `/playground` model dropdown picks them up on the next
+page refresh — no need to restart `npm run dev` for new Ollama models.
 
 ---
 
-## 3. Start the app
+## When to switch wallets — cheat sheet
 
-```bash
-npm run dev
-```
+| Moment in the demo                              | Which wallet                |
+| ----------------------------------------------- | --------------------------- |
+| Loading any page                                | None required               |
+| Mint on `/builder`                              | **Deployer** (has gas)      |
+| View "Mine" on `/my-agents`                     | **Deployer** (it owns #1)   |
+| Show empty vault on a second wallet             | **Buyer** (Account 2)       |
+| Demonstrate transfer (future, not on screen)    | Deployer → Buyer            |
+| `/playground` chat                              | None required (server-side) |
 
-Open http://localhost:3000 — you should see the AgentDeed landing page.
-
-**Verify:** the NavBar wordmark reads **Agent**Deed (with "Deed" in orange),
-and the footer copyright also says "AgentDeed". If you still see "WeightVault"
-anywhere, the dev server is serving a stale build — restart it.
-
----
-
-## 4. Route-by-route checklist
-
-The app has four routes. Walk each one.
-
-### 4.1 `/` — Landing page  **LIVE**
-
-- Hero, marquee, how-it-works, two-wallet demo diagram, FAQ all render.
-- Copy mentions "AgentDeed is a sealed-key marketplace for fine-tunes."
-- Nav links (`Marketplace`, `My Models`, `Builder`) route correctly.
-
-### 4.2 `/infts` — Marketplace  **LIVE (UI) / SIM (data)**
-
-- Grid of sealed model listings renders.
-- Filters and search narrow the list.
-- Listings are demo data — there's no contract read yet.
-
-### 4.3 `/my-agents` — Owner vault  **LIVE (wallet gate) / SIM (data)**
-
-- If wallet is **not** connected: page shows a connect prompt (wallet-gated).
-- Connect a wallet (see section 5) → holdings / listings / revenue panels render.
-- Holdings are demo data until the contract is live.
-
-### 4.4 `/builder` — Mint pipeline  **partially LIVE**
-
-This is the most important route to demo. It walks a file through four stages:
-**Upload → Encrypt → Store on 0G → Mint iNFT**.
-
-What's real vs simulated:
-
-| Stage        | Status | Notes                                                            |
-| ------------ | ------ | ---------------------------------------------------------------- |
-| Upload       | LIVE   | File picked from disk, never leaves the browser                  |
-| Encrypt      | LIVE   | Real AES-256-GCM via WebCrypto (`src/lib/crypto.ts`)             |
-| Store on 0G  | SIM    | Progress bar + fake `cid` — real 0G Storage upload pending       |
-| Mint iNFT    | SIM    | Random `tokenId` — ERC-7857 contract deploy pending              |
-
-See section 6 for the detailed builder test.
+`/playground` doesn't read your wallet at all — it's a server route that
+talks to Ollama / Router directly. Wallet only matters for the chain-side
+pages (`/builder`, `/my-agents`, `/infts` filter).
 
 ---
 
-## 5. Connect a wallet  **LIVE**
+## What's LIVE vs SIMULATED right now
 
-1. Click **Connect** (top-right, RainbowKit button).
-2. Pick your wallet. The app is configured for **0G Galileo Testnet**
-   (chain id `16601`).
-3. If your wallet doesn't have the network, RainbowKit / the wallet will
-   prompt you to add and switch to it.
-4. **Verify:** the connect button shows your address + the 0G network icon.
-5. Revisit `/my-agents` — it should now show the vault panels instead of the
-   connect prompt.
-
-You do **not** need testnet tokens just to connect. You'd only need them once
-the mint step is wired to a real contract.
-
----
-
-## 6. Builder end-to-end test (the core demo)  **partially LIVE**
-
-This proves the real encryption path works.
-
-1. Go to `/builder`.
-2. **Upload:** click the drop zone and pick any `.safetensors`, `.bin`,
-   `.pt`, or `.gguf` file. (Any file with those extensions works for the demo —
-   a small dummy file is fine.)
-3. Fill the form: **Model name** and **Domain / capability** are required.
-   Base model, LoRA rank, and list price have defaults.
-4. Click **Seal & mint →**.
-5. Watch the **build.log** panel on the right. You should see real output:
-   - `[encrypt] init AES-256-GCM · 12B nonce`
-   - `[encrypt] <filename> → <size> ciphertext`
-   - `[encrypt] sha256(ct) = <hash>…`  ← **this is a real SHA-256 of YOUR file's ciphertext**
-   - `[encrypt] aes-key = <hex>…`      ← **real 256-bit key from WebCrypto**
-   - `[0g.store] …`  ← SIM (fake cid/root)
-   - `[mint] …`      ← SIM (random tokenId)
-6. The pipeline lands on the **"iNFT #NNNN is sealed"** done screen.
-
-**How to verify the encryption is genuinely real (not faked):**
-- Upload the **same file twice** → the `sha256(ct)` line differs each run.
-  That's expected: a fresh random key + nonce every time means the ciphertext
-  (and its hash) changes. A faked demo would show the same hash.
-- Upload a **larger file** → the `ciphertext` size in the log scales with it.
-
-**Known SIM behavior to call out in a demo:**
-- The `cid`/`root` and `tokenId` are generated locally, not from 0G.
-- No on-chain transaction is sent. The "View on marketplace" link goes to the
-  demo listings, not a real token.
+| Surface                              | Live?                |
+| ------------------------------------ | -------------------- |
+| Landing, /pitch, navigation          | LIVE                 |
+| `/infts` reads from chain            | LIVE                 |
+| `/my-agents` reads from chain        | LIVE                 |
+| `/builder` AES-256-GCM encryption    | LIVE                 |
+| `/builder` 0G Storage pin            | **SIMULATED** (placeholder URI) |
+| `/builder` mint to ERC-7857          | LIVE (real tx)       |
+| `/playground` model catalog          | LIVE (from Ollama)   |
+| `/playground` chat completions       | LIVE (via Ollama)    |
+| `x_0g_trace` cost/tee fields         | **SYNTHESIZED** when on Ollama (zero cost, `tee_verified: false`) |
+| TEE re-encryption on transfer        | NOT LIVE yet (oracle deployed but unwired) |
 
 ---
 
-## 7. Quick smoke test (TL;DR)
+## Recording checklist
 
-```bash
-npm install
-cp .env.example .env.local      # add NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
-npm run dev
-```
-
-Then in the browser:
-1. `/` loads, wordmark says **AgentDeed**.
-2. Connect wallet → shows address on 0G Galileo.
-3. `/my-agents` unlocks after connect.
-4. `/builder` → upload a file → **Seal & mint** → build.log shows a real
-   SHA-256 of your file's ciphertext → done screen appears.
-
-If all four pass, the demo is working as intended for its current stage.
+- [ ] Both `npm run dev` and `ollama serve` running
+- [ ] At least one Ollama model pulled (`ollama list`)
+- [ ] `OLLAMA_BASE_URL` in `.env.local`, dev server restarted after that change
+- [ ] Wallet on chain 16602 with a bit of OG (for the mint signature)
+- [ ] Chainscan tab pre-opened to the deployed contract address
+- [ ] `demo-models/medscribe-lora.safetensors` exists (or any small file ready)
+- [ ] Browser zoom set so the build.log on `/builder` is readable
 
 ---
 
-## 8. What's NOT in the demo yet
+## Troubleshooting
 
-These are the **SIM** pieces, pending 0G integration work:
-
-- **Real 0G Storage upload** — needs the 0G Storage TS SDK wired into the
-  builder's "Store" stage so the sealed blob is actually pinned and a real
-  root hash / URI comes back.
-- **ERC-7857 contract** — needs an INFT contract deployed to 0G Galileo
-  (per the 0G INFT Integration Guide), its address in
-  `NEXT_PUBLIC_AGENT_DEED_ADDRESS`, and the `mint` call wired up.
-- **TEE re-encryption + inference** — the buy → oracle re-encrypt → sealed-key
-  delivery → 0G Compute inference flow. This is the `transfer(from, to,
-  tokenId, sealedKey, proof)` path from the ERC-7857 standard.
-
-Until those land, the demo proves: **the UI, the wallet integration, and the
-client-side encryption are real**; storage pinning and on-chain mint are
-mocked.
-
----
-
-## 9. Troubleshooting
-
-| Symptom                                  | Fix                                                          |
-| ---------------------------------------- | ------------------------------------------------------------ |
-| Still see "WeightVault" in the UI        | Restart `npm run dev` — stale build cache.                   |
-| Connect button does nothing / errors     | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` missing in `.env.local`. |
-| Wallet won't switch network              | Manually add 0G Galileo (chain id `16601`, RPC `https://evmrpc-testnet.0g.ai`). |
-| Builder "Seal & mint" button is disabled | Fill in **Model name** and **Domain** — both are required.   |
-| Encryption step fails in build.log       | File too large for browser memory — try a smaller test file. |
+| Symptom                                              | Fix                                                                 |
+| ---------------------------------------------------- | ------------------------------------------------------------------- |
+| `/playground` shows "Inference is not configured"    | Restart `npm run dev` after editing `.env.local`.                   |
+| Model dropdown on `/playground` is empty             | `ollama pull qwen2:0.5b` (or any model), then refresh the page.     |
+| Mint pops nothing / falls back to simulated          | Wallet not connected, or chain id ≠ 16602, or contract envs not loaded. |
+| `/my-agents` empty even though you minted           | You're connected as the wrong wallet — switch to the minter.        |
+| `chainScan` shows tx but `/infts` doesn't            | Hard refresh (Cmd-Shift-R) — the page caches the totalSupply read.  |
+| `Failed to read contract: Chain "0G" does not support contract "multicall3"` | Pull latest — already fixed via `c7103f2`. Restart dev. |
+| Ollama: `connection refused` on `localhost:11434`    | `ollama serve` not running, or another process owns the port.       |
