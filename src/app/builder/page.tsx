@@ -75,10 +75,40 @@ export default function BuilderPage() {
     setProgress(0);
     pushLog(`[0g.store] indexer: ${OG_STORAGE.indexerUrl}`);
     pushLog(`[0g.store] uploading sealed blob…`);
-    await advance(setProgress, 0, 100, 1200);
-    const cid = `bafy${cipherHash.slice(0, 18)}`;
-    pushLog(`[0g.store] root: 0x${cipherHash.slice(0, 12)}… · replicas: 3`);
-    pushLog(`[0g.store] cid:  ${cid}`);
+    setProgress(15);
+
+    let encryptedURI: string;
+    try {
+      const pinRes = await fetch("/api/storage/pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: sealed.ciphertext as BodyInit,
+      });
+      const pinJson = (await pinRes.json()) as
+        | { rootHash: string; txHash: string; txSeq: number; uri: string }
+        | { error: string };
+      if (!pinRes.ok || "error" in pinJson) {
+        const msg = "error" in pinJson ? pinJson.error : `HTTP ${pinRes.status}`;
+        pushLog(`[0g.store] ✗ pin failed: ${msg}`);
+        pushLog(`[0g.store] falling back to placeholder URI`);
+        encryptedURI = `0g://stub/${cipherHash.slice(0, 12)}`;
+      } else {
+        setProgress(85);
+        pushLog(
+          `[0g.store] root: ${pinJson.rootHash.slice(0, 14)}… · replicas: 3`,
+        );
+        pushLog(
+          `[0g.store] tx:   ${pinJson.txHash.slice(0, 14)}… · seq ${pinJson.txSeq}`,
+        );
+        encryptedURI = pinJson.uri;
+        pushLog(`[0g.store] uri:  ${encryptedURI.slice(0, 32)}…`);
+      }
+    } catch (err) {
+      pushLog(`[0g.store] ✗ pin failed: ${(err as Error).message}`);
+      pushLog(`[0g.store] falling back to placeholder URI`);
+      encryptedURI = `0g://stub/${cipherHash.slice(0, 12)}`;
+    }
+    setProgress(100);
 
     setStage("mint");
     setProgress(0);
@@ -86,7 +116,6 @@ export default function BuilderPage() {
     pushLog(`[mint] sealedKey envelope size: ${sealed.rawKey.length} B`);
 
     const metadataHash = `0x${cipherHash}` as Hex;
-    const encryptedURI = `og://${cid}`;
 
     if (AGENT_DEED_DEPLOYED && walletClient && address) {
       try {
