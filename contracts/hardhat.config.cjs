@@ -20,7 +20,7 @@ module.exports = {
   networks: {
     ogGalileo: {
       url: OG_RPC_URL || "https://evmrpc-testnet.0g.ai",
-      chainId: 16601,
+      chainId: 16602,
       accounts: DEPLOYER_PRIVATE_KEY ? [DEPLOYER_PRIVATE_KEY] : [],
     },
   },
