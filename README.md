@@ -50,6 +50,34 @@ same trust domain — which is what 0G gives you.
 | `/builder`      | Mint pipeline — upload → encrypt → 0G pin → mint              |
 | `/playground`   | Live inference — runs models on the 0G Compute Router         |
 | `/api/inference`| Server proxy — fronts the 0G Router, keeps the API key server-side |
+| `/pitch`        | 8-slide investor deck — problem, solution, business model, traction |
+
+## What's a LoRA, and why this matters
+
+**LoRA = Low-Rank Adaptation.** A small file (~5–500 MB) that *modifies* a
+base model's behavior without replacing the model itself.
+
+The intuition: a 70B-parameter model has billions of weights. Retraining
+all of them to specialize the model for, say, medical Q&A costs $50k–$200k
+in GPU time. But it turns out you can capture most of the specialization
+by training a tiny "delta" — two small matrices that get added on top of
+each transformer layer. That delta is the LoRA.
+
+So instead of shipping a 140 GB fine-tune, you ship:
+
+- **The base model** (Llama-3, Mistral, etc.) — already public, hosted everywhere
+- **A 50 MB LoRA file** — your IP
+
+At inference time the runtime loads both and merges them. The "rank" you
+see in the `/builder` form (16, 32, 64) is the inner dimension of those
+delta matrices — smaller = cheaper to train, bigger = more capacity for
+specialization. Rank 16 is a sane default for chat-style tasks.
+
+**Why this matters for AgentDeed.** LoRAs are the perfect product for a
+sealed-key marketplace. They're small (cheap to encrypt + pin), have real
+economic value (good ones are scarce), and the base model they ride on is
+free and public — so the buyer's compute cost is normal even though the
+*capability* is exclusive to them.
 
 ## How the builder actually works
 
