@@ -9,9 +9,12 @@ import {
   type RouterModel,
 } from "@/lib/router";
 
+type Provider = "router" | "ollama";
+
 export default function PlaygroundPage() {
   const [models, setModels] = useState<RouterModel[]>([]);
   const [modelsError, setModelsError] = useState<string | null>(null);
+  const [provider, setProvider] = useState<Provider>("router");
   const [model, setModel] = useState("");
   const [prompt, setPrompt] = useState(
     "Explain what an ERC-7857 iNFT is in two sentences.",
@@ -27,11 +30,12 @@ export default function PlaygroundPage() {
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Failed to load models");
-        return data.models as RouterModel[];
+        return data as { models: RouterModel[]; provider: Provider };
       })
-      .then((list) => {
+      .then(({ models: list, provider: p }) => {
         if (cancelled) return;
         setModels(list);
+        setProvider(p ?? "router");
         if (list.length > 0) setModel(list[0].id);
       })
       .catch((err: Error) => {
@@ -87,12 +91,23 @@ export default function PlaygroundPage() {
             Inference · /playground
           </p>
           <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
-            Run a model on 0G Compute.
+            {provider === "ollama"
+              ? "Run a model locally."
+              : "Run a model on 0G Compute."}
           </h1>
           <p className="mt-3 max-w-2xl text-base text-[#0A0A0A]/75">
-            Live calls to the 0G Compute Router — TEE-attested providers,
-            OpenAI-compatible. Every response carries an on-chain billing trace.
+            {provider === "ollama"
+              ? "Routed to a local Ollama instance. OpenAI-compatible — same wire format the 0G Compute Router uses in production."
+              : "Live calls to the 0G Compute Router — TEE-attested providers, OpenAI-compatible. Every response carries an on-chain billing trace."}
           </p>
+          {provider === "ollama" && (
+            <div className="mt-6 inline-flex items-center gap-3 border-2 border-[#0A0A0A] bg-[#0A0A0A] px-4 py-2.5 text-[#E2E2DA]">
+              <span className="h-2 w-2 rounded-full bg-[#F64618] pulse-dot" />
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em]">
+                Provider · Self-hosted Ollama · localhost
+              </span>
+            </div>
+          )}
         </div>
       </section>
 
@@ -129,8 +144,12 @@ export default function PlaygroundPage() {
                   ) : (
                     models.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.id} · {m.provider_count} provider
-                        {m.provider_count === 1 ? "" : "s"}
+                        {m.id}{" "}
+                        {provider === "ollama"
+                          ? "(local)"
+                          : `· ${m.provider_count} provider${
+                              m.provider_count === 1 ? "" : "s"
+                            }`}
                       </option>
                     ))
                   )}
@@ -175,10 +194,18 @@ export default function PlaygroundPage() {
 
             {selected && (
               <p className="font-mono text-[11px] text-[#E2E2DA]/60">
-                ctx {selected.context_length.toLocaleString()} tokens · prompt{" "}
-                {neuronToOg(selected.pricing.prompt).toExponential(2)} OG/tok ·
-                completion{" "}
-                {neuronToOg(selected.pricing.completion).toExponential(2)} OG/tok
+                ctx {selected.context_length.toLocaleString()} tokens
+                {provider === "router" && (
+                  <>
+                    {" "}
+                    · prompt{" "}
+                    {neuronToOg(selected.pricing.prompt).toExponential(2)} OG/tok
+                    · completion{" "}
+                    {neuronToOg(selected.pricing.completion).toExponential(2)}{" "}
+                    OG/tok
+                  </>
+                )}
+                {provider === "ollama" && " · local · no billing"}
               </p>
             )}
           </div>
