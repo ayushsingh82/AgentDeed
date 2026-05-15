@@ -197,21 +197,17 @@ export type InftRecord = {
   metadataHash: Hex;
 };
 
-/** Fetch the full record for one token in a single multicall round-trip. */
+/** Fetch the full record for one token via parallel reads.
+ *  Note: 0G doesn't have a Multicall3 deployment registered with viem, so
+ *  we fan out three individual `eth_call`s instead. The RPC batches them in
+ *  flight, so the wall-clock cost is comparable. */
 export async function getInft(tokenId: bigint): Promise<InftRecord> {
   assertDeployed();
-  const base = {
-    address: AGENT_DEED_CONTRACT,
-    abi: INFT_ABI,
-  } as const;
-  const [owner, encryptedURI, metadataHash] = await publicClient.multicall({
-    allowFailure: false,
-    contracts: [
-      { ...base, functionName: "ownerOf", args: [tokenId] },
-      { ...base, functionName: "getEncryptedURI", args: [tokenId] },
-      { ...base, functionName: "getMetadataHash", args: [tokenId] },
-    ],
-  });
+  const [owner, encryptedURI, metadataHash] = await Promise.all([
+    ownerOf(tokenId),
+    getEncryptedURI(tokenId),
+    getMetadataHash(tokenId),
+  ]);
   return { tokenId, owner, encryptedURI, metadataHash };
 }
 
