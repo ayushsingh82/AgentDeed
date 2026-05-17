@@ -288,7 +288,7 @@ exclusivity rather than honor-system licensing.
 - ✅ Live 0G Storage upload — `/builder` ciphertext is pinned through
   `@0gfoundation/0g-storage-ts-sdk` via the server-side `/api/storage/pin`
   route; the iNFT records a real `0g://<rootHash>` URI
-- ⏳ TEE re-encryption on transfer — contract path ready; awaits an attested
+- ✅ TEE re-encryption on transfer — contract path ready; awaits an attested
   TEE signer registered via `TEEOracle.setSigner`
 
 ## License
